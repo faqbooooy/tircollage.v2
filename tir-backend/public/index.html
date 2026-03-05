@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тир Меткий Выстрел</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="/img/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="#hero" class="logo-link">
+                <h1 class="logo">
+                    <div class="logo-top">ПУЛЯ</div>
+                    <div class="logo-bottom">стрелковый тир</div>
+                </h1>
+            </a>
+            <button class="nav-toggle" aria-label="Открыть меню">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <nav class="nav-menu">
+                <ul>
+                    <li><a href="#services" class="nav-link">Услуги</a></li>
+                    <li><a href="#arsenal" class="nav-link">Арсенал</a></li>
+                    <li><a href="#pricing" class="nav-link">Цены</a></li>
+                    <li><a href="#reviews" class="nav-link">Отзывы</a></li>
+                    <li><a href="#contacts" class="nav-link">Контакты</a></li>
+                    <li><a href="gallery.html" class="nav-link">Галерея</a></li>
+                    <li><a href="/admin-login" class="nav-link">Вход</a></li>
+                </ul>
+            </nav>
+            <a href="#booking" class="btn btn-primary">Записаться</a>
+        </div>
+    </header>
+
+    <section id="hero" class="hero">
+        <div class="container">
+            <h1 class="hero-title">Тир Меткий Выстрел</h1>
+            <p class="hero-subtitle">Попади в цель с первого выстрела!</p>
+            <a href="#booking" class="btn btn-primary mobile-hero-btn">Записаться</a>
+        </div>
+    </section>
+
+    <div id="scroll-top" class="scroll-top">↑</div>
+
+    <section id="news" class="section">
+        <div class="container">
+            <h2 class="section-title">Новости</h2>
+            <div id="news-list"></div>
+        </div>
+    </section>
+
+    <section id="about" class="section">
+        <div class="container">
+            <h2 class="section-title">О нас</h2>
+            <p class="section-text">Добро пожаловать в Тир Меткий Выстрел — место, где вы можете научиться стрелять, отточить свои навыки или просто провести время с адреналином. Мы предлагаем безопасную среду, сертифицированных инструкторов и широкий выбор оружия.</p>
+        </div>
+    </section>
+
+    <section id="services" class="section">
+        <div class="container">
+            <h2 class="section-title">Услуги</h2>
+            <div class="services-grid">
+                <div class="service-card">
+                    <h3 class="card-title">Базовая подготовка</h3>
+                    <p class="card-text">Индивидуальное обучение с профессиональным инструктором. Теория и практика безопасного обращения с оружием.</p>
+                </div>
+                <div class="service-card">
+                    <h3 class="card-title">Спортивная стрельба</h3>
+                    <p class="card-text">Тренировки для опытных стрелков. Подготовка к соревнованиям, отработка техники, улучшение результатов.</p>
+                </div>
+                <div class="service-card">
+                    <h3 class="card-title">VIP-программы</h3>
+                    <p class="card-text">Эксклюзивные программы стрельбы. Индивидуальный подход, премиальное оружие, особые условия.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="arsenal" class="section">
+        <div class="container">
+            <h2 class="section-title">Наш Арсенал</h2>
+            <div class="weapon-list">
+                <article class="weapon-item">
+                    <div class="weapon-image"><img src="/img/p226.jpeg" alt="Пистолет P226 SIG Sauer"></div>
+                    <div class="weapon-description">
+                        <p>Пистолет P226 SIG Sauer</p>
+                        <p>Калибр: 9x19mm Parabellum</p>
+                        <p>Страна: Швейцария/Германия</p>
+                        <p>Стоимость выстрела: 50₽</p>
+                    </div>
+                </article>
+                <article class="weapon-item">
+                    <div class="weapon-image"><img src="/img/baikal-442.jpeg" alt="Пистолет Байкал-442"></div>
+                    <div class="weapon-description">
+                        <p>Пистолет Байкал-442</p>
+                        <p>Калибр: 9x19mm Parabellum</p>
+                        <p>Страна: Россия</p>
+                        <p>Стоимость выстрела: 55₽</p>
+                    </div>
+                </article>
+                <article class="weapon-item">
+                    <div class="weapon-image"><img src="/img/viking.jpeg" alt="Пистолет МР-446 Viking"></div>
+                    <div class="weapon-description">
+                        <p>Пистолет МР-446 Viking</p>
+                        <p>Калибр: 9x19mm Parabellum</p>
+                        <p>Страна: Россия</p>
+                        <p>Стоимость выстрела: 60₽</p>
+                    </div>
+                </article>
+                <article class="weapon-item">
+                    <div class="weapon-image"><img src="/img/cz_p_9x19.jpeg" alt="Пистолет CZ P-09"></div>
+                    <div class="weapon-description">
+                        <p>Пистолет CZ P-09</p>
+                        <p>Калибр: 9x19mm Parabellum</p>
+                        <p>Страна: Чехия</p>
+                        <p>Стоимость выстрела: 65₽</p>
+                    </div>
+                </article>
+                <article class="weapon-item">
+                    <div class="weapon-image"><img src="/img/hk_usp.jpeg" alt="Пистолет H&K USP"></div>
+                    <div class="weapon-description">
+                        <p>Пистолет H&K USP</p>
+                        <p>Калибр: .45 ACP</p>
+                        <p>Страна: Германия</p>
+                        <p>Стоимость выстрела: 70₽</p>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section id="pricing" class="section">
+        <div class="container">
+            <h2 class="section-title">Цены</h2>
+            <ul class="pricing-list">
+                <li class="pricing-item">Пробный выстрел (20 патронов + инструктор) — <span>1500 руб.</span></li>
+                <li class="pricing-item">Час аренды дорожки — <span>2000 руб.</span></li>
+                <li class="pricing-item">Обучение (5 занятий) — <span>10 000 руб.</span></li>
+            </ul>
+        </div>
+    </section>
+
+    <section id="reviews" class="section">
+        <div class="container">
+            <h2 class="section-title">Отзывы</h2>
+            <div id="reviews-list"></div>
+            <div class="review-form-wrap">
+                <h3 class="review-form-title">Оставить отзыв</h3>
+                <form id="review-form">
+                    <input type="text" id="review-name" class="input" placeholder="Ваше имя" required maxlength="100">
+                    <div class="star-rating" id="star-rating">
+                        <span class="star" data-value="1">★</span>
+                        <span class="star" data-value="2">★</span>
+                        <span class="star" data-value="3">★</span>
+                        <span class="star" data-value="4">★</span>
+                        <span class="star" data-value="5">★</span>
+                    </div>
+                    <input type="hidden" id="review-rating" value="0">
+                    <textarea id="review-text" class="input" placeholder="Расскажите о вашем визите..." required maxlength="1000" rows="4"></textarea>
+                    <button type="submit" class="btn btn-primary submit-btn">Отправить отзыв</button>
+                </form>
+                <div id="review-success" style="display:none;" class="review-success">
+                    <p>✅ Спасибо за отзыв! После проверки он появится на сайте.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="contacts" class="section" itemscope itemtype="http://schema.org/Organization">
+        <div class="container">
+            <h2 class="section-title">Контакты</h2>
+            <p class="contact-info" itemprop="address" itemscope itemtype="http://schema.org/PostalAddress">
+                Адрес: <span itemprop="streetAddress">г. Москва, ул. Стрелковая, д. 10</span>
+            </p>
+            <p class="contact-info">Телефон: <a href="tel:+74951234567" class="link" itemprop="telephone">+7 (495) 123-45-67</a></p>
+            <p class="contact-info">Email: <a href="/cdn-cgi/l/email-protection#660f08000926120f144b0b0915050911481413" class="link" itemprop="email"><span class="__cf_email__" data-cfemail="88e1e6eee7c8fce1faa5e5e7fbebe7ffa6fafd">[email&#160;protected]</span></a></p>
+            <p class="contact-info">Часы работы: Пн-Вс, 10:00–22:00</p>
+            <div class="map">
+                <iframe src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d2533.8072007102573!2d36.560759!3d50.5749485!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x412641d5ec5190a1%3A0xc6c057fcba1484a8!2z0YPQuy4g0JPQvtGA0YzQutC-0LPQviwgNjHQkSwg0JHQtdC70LPQvtGA0L7QtCwg0JHQtdC70LPQvtGA0L7QtNGB0LrQsNGPINC-0LHQuy4sINCg0L7RgdGB0LjRjywgMzA4MDI0!5e0!3m2!1sru!2slv!4v1740224402030!5m2!1sru!2slv" width="100%" height="300" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
+            </div>
+        </div>
+    </section>
+
+    <section id="booking" class="section">
+        <div class="container">
+            <h2 class="section-title">Записаться</h2>
+
+            <!-- Форма записи -->
+            <form class="booking-form" id="booking-form">
+                <input type="text" placeholder="Имя" class="input" id="name" required>
+                <input type="tel" id="phone" class="input" placeholder="+7 (___) ___-__-__" maxlength="18" required>
+                <input type="date" class="input" id="date" required>
+                <select id="datetime" class="input" required>
+                    <option value="">Выберите время</option>
+                </select>
+                <button type="submit" class="btn btn-primary submit-btn">Отправить заявку</button>
+            </form>
+
+            <!-- Экран "Спасибо" (скрыт по умолчанию) -->
+            <div id="booking-success" class="booking-success" style="display:none;">
+                <div class="booking-success-icon">🎯</div>
+                <h3 class="booking-success-title">Вы записаны!</h3>
+                <p class="booking-success-text" id="booking-success-text"></p>
+                <button class="btn btn-primary" id="booking-success-btn">Записаться ещё раз</button>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p class="footer-text">© 2025 Тир Меткий Выстрел. Все права защищены.</p>
+        </div>
+    </footer>
+
+    <!-- Фиксированная кнопка записи на мобиле -->
+    <a href="#booking" class="mobile-book-btn">Записаться</a>
+
+    <!-- Модалка для новостей -->
+    <div id="news-modal" class="news-modal">
+        <div class="news-modal-content">
+            <button class="news-modal-close" id="news-modal-close">✕</button>
+            <img id="news-modal-img" src="" alt="" class="news-modal-img" style="display:none;">
+            <h2 class="news-modal-title" id="news-modal-title"></h2>
+            <small class="news-modal-date" id="news-modal-date"></small>
+            <div class="news-modal-body" id="news-modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Модальное окно (общее) -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <p id="modal-message"></p>
+            <div class="modal-buttons">
+                <button id="modal-confirm" class="modal-btn confirm">Да</button>
+                <button id="modal-cancel" class="m

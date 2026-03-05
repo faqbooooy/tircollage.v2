@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Галерея - Тир Меткий Выстрел</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="/img/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="index.html#hero" class="logo-link">
+                <h1 class="logo">
+                    <div class="logo-top">ПУЛЯ</div>
+                    <div class="logo-bottom">стрелковый тир</div>
+                </h1>
+            </a>
+            <button class="nav-toggle" aria-label="Открыть меню">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <nav class="nav-menu">
+                <ul>
+                    <li><a href="index.html#services" class="nav-link">Услуги</a></li>
+                    <li><a href="index.html#arsenal" class="nav-link">Арсенал</a></li>
+                    <li><a href="index.html#pricing" class="nav-link">Цены</a></li>
+                    <li><a href="index.html#contacts" class="nav-link">Контакты</a></li>
+                    <li><a href="gallery.html" class="nav-link active">Галерея</a></li>
+                </ul>
+            </nav>
+            <a href="index.html#booking" class="btn btn-primary">Записаться</a>
+        </div>
+    </header>
+
+    <section class="gallery-page">
+        <div class="container">
+            <h1 class="gallery-title">Галерея</h1>
+            <div class="gallery-grid">
+                <img src="/img/tir1.jpg" alt="Тир 1" class="gallery-img">
+                <img src="/img/tir2.jpg" alt="Тир 2" class="gallery-img">
+                <img src="/img/tir3.jpg" alt="Тир 3" class="gallery-img">
+                <img src="/img/tir4.jpg" alt="Тир 4" class="gallery-img">
+                <img src="/img/tir5.jpg" alt="Тир 5" class="gallery-img">
+                <img src="/img/tir6.jpg" alt="Тир 6" class="gallery-img">
+                <img src="/img/tir7.jpg" alt="Тир 7" class="gallery-img">
+                <img src="/img/tir8.jpg" alt="Тир 8" class="gallery-img">
+            </div>
+            <a href="index.html#hero" class="btn btn-primary">Вернуться на главную</a>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p class="footer-text">© 2025 Тир Меткий Выстрел. Все права защищены.</p>
+            <a href="index.html#booking" class="btn btn-primary mobile-only">Записаться</a>
+        </div>
+    </footer>
+
+    <!-- Модальное окно -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <p id="modal-message"></p>
+            <div class="modal-buttons">
+                <button id="modal-confirm" class="modal-btn confirm">Да</button>
+                <button id="modal-cancel" class="modal-btn cancel">Нет</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
