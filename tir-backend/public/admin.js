@@ -52,12 +52,11 @@ async function checkAuth() {
 
 function startPolling() {
     setInterval(() => {
-        // Обновляем только если вкладка "Брони" активна — незачем грузить фоном
         const bookingsTab = document.getElementById('bookings');
         if (bookingsTab && bookingsTab.classList.contains('active')) {
             loadBookings();
         }
-    }, 30000); // каждые 30 секунд
+    }, 30000);
 }
 
 // ================= ВКЛАДКИ =================
@@ -66,7 +65,7 @@ function initTabs() {
     const loaders = {
         bookings: loadBookings,
         blocked: () => { loadBlocked(); loadBlockedRanges(); },
-        'news-add': () => {},           // форма всегда готова, грузить нечего
+        'news-add': () => {},
         'news-list-tab': loadNews,
         'reviews-tab': loadAdminReviews
     };
@@ -97,10 +96,34 @@ function initQuill() {
 
 function showError(message) {
     console.error(message);
-    alert(message);
+    showToast(message, 'error');
 }
 
-// ================= БРОНИ =================
+// ================= TOAST =================
+
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    if (!container) {
+        // Если контейнера нет, создадим временный
+        const newContainer = document.createElement('div');
+        newContainer.id = 'toast-container';
+        newContainer.className = 'toast-container';
+        document.body.appendChild(newContainer);
+        showToast(message, type);
+        return;
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.classList.add('fade-out');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
 
 // ================= БРОНИ + КАЛЕНДАРЬ =================
 
@@ -128,7 +151,6 @@ function renderCalendar() {
     document.getElementById('cal-month-label').textContent =
         `${monthNames[calMonth]} ${calYear}`;
 
-    // Считаем сколько броней на каждый день месяца
     const counts = {};
     allBookings.forEach(b => {
         const d = b.datetime.split('T')[0];
@@ -137,7 +159,6 @@ function renderCalendar() {
 
     const firstDay = new Date(calYear, calMonth, 1);
     const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
-    // Понедельник = 0
     let startDow = firstDay.getDay() - 1;
     if (startDow < 0) startDow = 6;
 
@@ -145,7 +166,6 @@ function renderCalendar() {
     const container = document.getElementById('cal-days');
     container.innerHTML = '';
 
-    // Пустые ячейки до первого дня
     for (let i = 0; i < startDow; i++) {
         const empty = document.createElement('div');
         empty.className = 'cal-day cal-day--empty';
@@ -167,14 +187,13 @@ function renderCalendar() {
 
         cell.addEventListener('click', () => {
             selectedDate = dateStr;
-            renderCalendar(); // перерисовываем чтобы выделить выбранный день
+            renderCalendar();
             renderDayBookings(dateStr);
         });
 
         container.appendChild(cell);
     }
 
-    // Навигация
     document.getElementById('cal-prev').onclick = () => {
         calMonth--;
         if (calMonth < 0) { calMonth = 11; calYear--; }
@@ -205,20 +224,38 @@ function renderDayBookings(dateStr) {
         return;
     }
 
-    // Сортируем по времени
     dayBookings.sort((a, b) => a.datetime.localeCompare(b.datetime));
 
     dayBookings.forEach(b => {
         const time = b.datetime.split('T')[1].slice(0, 5);
         const item = document.createElement('div');
         item.className = 'booking-item';
-        item.innerHTML = `
-            <span class="booking-time">${time}</span>
-            <span class="booking-name">${b.name}</span>
-            <span class="booking-phone">${b.phone}</span>
-            <button class="booking-delete-btn">Удалить</button>
-        `;
-        item.querySelector('button').addEventListener('click', () => deleteBooking(b.id, item, dateStr));
+
+        // Подсветка прошедших броней
+        const bookingDateTime = new Date(b.datetime);
+        if (bookingDateTime < new Date()) {
+            item.classList.add('booking-item--past');
+        }
+
+        // Безопасное создание элементов (защита от XSS)
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'booking-time';
+        timeSpan.textContent = time;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'booking-name';
+        nameSpan.textContent = b.name;
+
+        const phoneSpan = document.createElement('span');
+        phoneSpan.className = 'booking-phone';
+        phoneSpan.textContent = b.phone;
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'booking-delete-btn';
+        deleteBtn.textContent = 'Удалить';
+        deleteBtn.addEventListener('click', () => deleteBooking(b.id, item, dateStr));
+
+        item.append(timeSpan, nameSpan, phoneSpan, deleteBtn);
         container.appendChild(item);
     });
 }
@@ -230,18 +267,94 @@ async function deleteBooking(id, row, dateStr) {
             method: 'DELETE',
             headers: authHeaders()
         });
-        // Убираем из локального массива и перерисовываем
         allBookings = allBookings.filter(b => b.id !== id);
         row.remove();
         renderCalendar();
-        // Если в этот день больше нет броней — показываем пустое состояние
         if (dateStr && !allBookings.some(b => b.datetime.startsWith(dateStr))) {
             document.getElementById('bookings-container').innerHTML =
                 '<p class="empty-state">В этот день броней нет</p>';
         }
+        showToast('Бронь удалена', 'success');
     } catch (err) {
         showError('Ошибка при удалении: ' + err.message);
     }
+}
+
+// ================= РУЧНОЕ ДОБАВЛЕНИЕ БРОНИ =================
+function initManualBooking() {
+    const adminDate = document.getElementById('admin-date');
+    const adminTime = document.getElementById('admin-time');
+    const adminBookingForm = document.getElementById('admin-booking-form');
+
+    if (!adminDate || !adminTime || !adminBookingForm) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    adminDate.setAttribute('min', today);
+
+    adminDate.addEventListener('change', async (e) => {
+        const date = e.target.value;
+        if (!date) return;
+        try {
+            const res = await fetch(`/api/available-slots?date=${date}`);
+            const slots = await res.json();
+            let availableSlots = slots.map(s => s.datetime);
+
+            // Фильтруем прошедшие слоты для сегодняшней даты
+            if (date === today) {
+                const now = new Date();
+                availableSlots = availableSlots.filter(slot => {
+                    const slotDate = new Date(slot);
+                    return slotDate > now;
+                });
+            }
+
+            adminTime.innerHTML = '<option value="">Выберите время</option>';
+            if (availableSlots.length === 0) {
+                adminTime.innerHTML += '<option value="" disabled>Нет свободного времени</option>';
+            } else {
+                availableSlots.forEach(slot => {
+                    const time = slot.split('T')[1].slice(0,5);
+                    const opt = document.createElement('option');
+                    opt.value = slot;
+                    opt.textContent = time;
+                    adminTime.appendChild(opt);
+                });
+            }
+        } catch (err) {
+            showError('Ошибка загрузки времени');
+        }
+    });
+
+    adminBookingForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('admin-name').value.trim();
+        const phone = document.getElementById('admin-phone').value.trim();
+        const datetime = adminTime.value;
+
+        if (!name || !phone || !datetime) {
+            showToast('Заполните все поля', 'warning');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/book', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, phone, datetime })
+            });
+            const result = await res.json();
+            if (result.success) {
+                adminBookingForm.reset();
+                adminTime.innerHTML = '<option value="">Сначала выберите дату</option>';
+                await loadBookings();
+                showToast('Бронь успешно добавлена', 'success');
+            } else {
+                showToast(result.message || 'Ошибка при добавлении', 'error');
+            }
+        } catch (err) {
+            showError('Ошибка соединения');
+        }
+    });
 }
 
 // ================= ЗАПРЕЩЁННЫЕ ДНИ =================
@@ -260,6 +373,7 @@ function initForms() {
             });
             input.value = '';
             loadBlocked();
+            showToast('Дата заблокирована', 'success');
         } catch (err) {
             showError('Ошибка при добавлении даты: ' + err.message);
         }
@@ -279,11 +393,12 @@ function initForms() {
             });
             const result = await res.json();
             if (!result.success) {
-                showError(result.message);
+                showToast(result.message, 'error');
                 return;
             }
             document.getElementById('block-range-form').reset();
             loadBlockedRanges();
+            showToast('Диапазон заблокирован', 'success');
         } catch (err) {
             showError('Ошибка при добавлении диапазона: ' + err.message);
         }
@@ -296,13 +411,31 @@ function initForms() {
     });
 
     document.getElementById('news-image').addEventListener('change', (e) => {
+        const files = e.target.files;
         const label = document.getElementById('file-label-text');
-        label.textContent = e.target.files[0]
-            ? '✅ ' + e.target.files[0].name
-            : '📎 Прикрепить изображение';
+        label.textContent = files.length > 0
+            ? `✅ Выбрано файлов: ${files.length}`
+            : '📎 Прикрепить изображения (можно несколько)';
+
+        // Удаляем превью новых файлов (не трогаем существующие)
+        document.querySelectorAll('#images-preview .img-preview-item--new').forEach(el => el.remove());
+
+        for (const file of files) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const item = document.createElement('div');
+                item.className = 'img-preview-item img-preview-item--new';
+                item.innerHTML = `<img src="${ev.target.result}" alt=""><span class="img-preview-badge">Новое</span>`;
+                document.getElementById('images-preview').appendChild(item);
+            };
+            reader.readAsDataURL(file);
+        }
     });
 
     document.getElementById('news-form').addEventListener('submit', submitNews);
+
+    // Инициализация ручного добавления брони
+    initManualBooking();
 }
 
 async function loadBlocked() {
@@ -332,6 +465,7 @@ async function loadBlocked() {
                         headers: authHeaders()
                     });
                     li.remove();
+                    showToast('Дата разблокирована', 'success');
                 } catch (err) {
                     showError('Ошибка при удалении: ' + err.message);
                 }
@@ -374,6 +508,7 @@ async function loadBlockedRanges() {
                         headers: authHeaders()
                     });
                     li.remove();
+                    showToast('Диапазон удалён', 'success');
                 } catch (err) {
                     showError('Ошибка при удалении: ' + err.message);
                 }
@@ -406,12 +541,17 @@ async function loadNews() {
         }
 
         news.forEach(item => {
+            const images = item.images || (item.image ? [item.image] : []);
             const div = document.createElement('div');
             div.className = 'news-card';
             div.innerHTML = `
-                ${item.image ? `<img src="${item.image}" alt="${item.title}" class="news-card-img">` : ''}
+                ${images.length > 0 ? `
+                    <div class="news-card-img-wrap">
+                        <img src="${images[0]}" alt="${item.title}" class="news-card-img">
+                        ${images.length > 1 ? `<span class="news-card-img-count">+${images.length - 1}</span>` : ''}
+                    </div>` : ''}
                 <div class="news-card-body">
-                    <strong>${item.title}</strong>
+                    <strong></strong>
                     <small>${item.date || ''}</small>
                 </div>
                 <div class="news-actions">
@@ -419,13 +559,27 @@ async function loadNews() {
                     <button data-delete="${item.id}">Удалить</button>
                 </div>
             `;
+            div.querySelector('.news-card-body strong').textContent = item.title;
 
             div.querySelector('[data-edit]').addEventListener('click', () => {
                 switchTab('news-add');
                 document.getElementById('news-title').value = item.title;
                 quill.root.innerHTML = item.content;
-                document.getElementById('news-submit').textContent = 'Сохранить';
-                document.getElementById('news-submit').dataset.editId = item.id;
+                const submitBtn = document.getElementById('news-submit');
+                submitBtn.textContent = 'Сохранить';
+                submitBtn.dataset.editId = item.id;
+                delete submitBtn.dataset.existingImage;
+
+                // Очищаем превью и показываем существующие изображения
+                const preview = document.getElementById('images-preview');
+                preview.innerHTML = '';
+                images.forEach(path => addExistingImagePreview(path));
+
+                // Сбрасываем файловый инпут
+                const fileInput = document.getElementById('news-image');
+                fileInput.value = '';
+                document.getElementById('file-label-text').textContent = '📎 Прикрепить изображения (можно несколько)';
+
                 document.querySelector('#news-add .tab-title').textContent = 'Редактировать новость';
             });
 
@@ -437,6 +591,7 @@ async function loadNews() {
                         headers: authHeaders()
                     });
                     div.remove();
+                    showToast('Новость удалена', 'success');
                 } catch (err) {
                     showError('Ошибка при удалении: ' + err.message);
                 }
@@ -457,23 +612,44 @@ function switchTab(tabId) {
     document.getElementById(tabId).classList.add('active');
 }
 
+// Добавляет превью существующего (сохранённого) изображения с кнопкой удаления
+function addExistingImagePreview(path) {
+    const preview = document.getElementById('images-preview');
+    const item = document.createElement('div');
+    item.className = 'img-preview-item img-preview-item--existing';
+    item.dataset.path = path;
+    item.innerHTML = `
+        <img src="${path}" alt="">
+        <button type="button" class="img-preview-remove" title="Удалить">×</button>
+    `;
+    item.querySelector('.img-preview-remove').addEventListener('click', () => item.remove());
+    preview.appendChild(item);
+}
+
 function showNewsPreview() {
     const title = document.getElementById('news-title').value || 'Заголовок новости';
     const content = quill.root.innerHTML;
-    const file = document.getElementById('news-image').files[0];
     const date = new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 
     const modal = document.getElementById('news-preview-modal');
+    const previewImg = document.getElementById('preview-img');
 
-    if (file) {
+    // Берём первое доступное изображение: из новых файлов или из существующих
+    const newFile = document.getElementById('news-image').files[0];
+    const existingItem = document.querySelector('#images-preview .img-preview-item--existing');
+
+    if (newFile) {
         const reader = new FileReader();
         reader.onload = (e) => {
-            document.getElementById('preview-img').src = e.target.result;
-            document.getElementById('preview-img').style.display = 'block';
+            previewImg.src = e.target.result;
+            previewImg.style.display = 'block';
         };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(newFile);
+    } else if (existingItem) {
+        previewImg.src = existingItem.dataset.path;
+        previewImg.style.display = 'block';
     } else {
-        document.getElementById('preview-img').style.display = 'none';
+        previewImg.style.display = 'none';
     }
 
     document.getElementById('preview-title').textContent = title;
@@ -496,12 +672,29 @@ async function submitNews(e) {
     const editId = submitBtn.dataset.editId;
     const isEdit = !!editId;
 
+    const title = document.getElementById('news-title').value.trim();
+    if (!title) {
+        showToast('Введите заголовок новости', 'warning');
+        return;
+    }
+
     const formData = new FormData();
-    formData.append('title', document.getElementById('news-title').value);
+    formData.append('title', title);
     formData.append('content', quill.root.innerHTML);
 
-    const file = document.getElementById('news-image').files[0];
-    if (file) formData.append('image', file);
+    // Собираем пути существующих изображений, которые не были удалены
+    if (isEdit) {
+        const kept = [...document.querySelectorAll('#images-preview .img-preview-item--existing')]
+            .map(el => el.dataset.path)
+            .filter(Boolean);
+        formData.append('keepImages', JSON.stringify(kept));
+    }
+
+    // Добавляем новые файлы
+    const files = document.getElementById('news-image').files;
+    for (const file of files) {
+        formData.append('images', file);
+    }
 
     try {
         const url = isEdit ? `/api/news/${editId}` : '/api/news';
@@ -514,6 +707,8 @@ async function submitNews(e) {
         });
 
         if (!res.ok) throw new Error(`Ошибка: ${res.status}`);
+
+        showToast(isEdit ? 'Новость обновлена' : 'Новость опубликована', 'success');
 
     } catch (err) {
         showError('Ошибка при сохранении новости: ' + err.message);
@@ -529,8 +724,10 @@ function resetNewsForm() {
     const submitBtn = document.getElementById('news-submit');
     submitBtn.textContent = 'Опубликовать';
     delete submitBtn.dataset.editId;
+    delete submitBtn.dataset.existingImage;
     document.getElementById('news-form').reset();
-    document.getElementById('file-label-text').textContent = '📎 Прикрепить изображение';
+    document.getElementById('images-preview').innerHTML = '';
+    document.getElementById('file-label-text').textContent = '📎 Прикрепить изображения (можно несколько)';
     document.querySelector('#news-add .tab-title').textContent = 'Добавить новость';
     quill.root.innerHTML = '';
 }
@@ -566,18 +763,25 @@ function renderAdminReviews(containerId, reviews, isApproved) {
         const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
         const card = document.createElement('div');
         card.className = 'admin-review-card';
+
+        // Шаблон с безопасными полями (звёзды — только ★/☆, id — число)
         card.innerHTML = `
             <div class="admin-review-header">
-                <span class="admin-review-name">${r.name}</span>
+                <span class="admin-review-name"></span>
                 <span class="admin-review-stars">${stars}</span>
-                <span class="admin-review-date">${r.date}</span>
+                <span class="admin-review-date"></span>
             </div>
-            <p class="admin-review-text">${r.text}</p>
+            <p class="admin-review-text"></p>
             <div class="admin-review-actions">
                 ${!isApproved ? `<button class="btn-approve" data-id="${r.id}">✓ Опубликовать</button>` : ''}
                 <button class="btn-reject" data-id="${r.id}">Удалить</button>
             </div>
         `;
+
+        // Безопасно вставляем пользовательские данные через textContent
+        card.querySelector('.admin-review-name').textContent = r.name;
+        card.querySelector('.admin-review-date').textContent = r.date;
+        card.querySelector('.admin-review-text').textContent = r.text;
 
         if (!isApproved) {
             card.querySelector('.btn-approve').addEventListener('click', async () => {
@@ -585,6 +789,7 @@ function renderAdminReviews(containerId, reviews, isApproved) {
                     method: 'PUT', headers: authHeaders()
                 });
                 loadAdminReviews();
+                showToast('Отзыв опубликован', 'success');
             });
         }
 
@@ -594,6 +799,7 @@ function renderAdminReviews(containerId, reviews, isApproved) {
                 method: 'DELETE', headers: authHeaders()
             });
             loadAdminReviews();
+            showToast('Отзыв удалён', 'success');
         });
 
         container.appendChild(card);

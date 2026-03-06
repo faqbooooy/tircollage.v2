@@ -3,44 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Вход в админ-панель - Тир Меткий Выстрел</title>
+    <title>Вход в админ-панель</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="/img/favicon.ico" type="image/x-icon">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 </head>
-<body>
-    <header>
-        <div class="container">
-            <a href="/#hero" class="logo-link">
-                <h1 class="logo">
-                    <div class="logo-top">ПУЛЯ</div>
-                    <div class="logo-bottom">стрелковый тир</div>
-                </h1>
-            </a>
-        </div>
-    </header>
+<body class="login-page">
 
-    <section class="section">
-        <div class="container">
-            <h2 class="section-title">Вход в админ-панель</h2>
-            <form id="login-form" class="booking-form">
-                <input type="text" id="username" class="input" placeholder="Логин" required>
-                <input type="password" id="password" class="input" placeholder="Пароль" required>
-                <button type="submit" class="btn btn-primary submit-btn">Войти</button>
-            </form>
-        </div>
-    </section>
+<div class="login-wrap">
+    <div class="login-box">
+        <h1 class="login-title">Вход</h1>
+        <p class="login-subtitle">Админ-панель</p>
 
-    <div id="modal" class="modal">
-        <div class="modal-content">
-            <p id="modal-message"></p>
-            <div class="modal-buttons">
-                <button id="modal-confirm" class="modal-btn confirm" style="display:none;">Да</button>
-                <button id="modal-cancel" class="modal-btn cancel">ОК</button>
-            </div>
+        <form id="login-form" class="login-form" autocomplete="on">
+            <input
+                type="text"
+                id="username"
+                class="input"
+                placeholder="Логин"
+                autocomplete="username"
+                required
+            >
+            <input
+                type="password"
+                id="password"
+                class="input"
+                placeholder="Пароль"
+                autocomplete="current-password"
+                required
+            >
+            <label class="remember-label">
+                <input type="checkbox" id="remember-me">
+                <span>Запомнить меня на 30 дней</span>
+            </label>
+            <button type="submit" class="btn btn-primary login-btn">Войти</button>
+        </form>
+    </div>
+</div>
+
+<!-- Модальное окно ошибки -->
+<div id="modal" class="modal">
+    <div class="modal-content">
+        <p id="modal-message"></p>
+        <div class="modal-buttons">
+            <button id="modal-cancel" class="modal-btn cancel">Закрыть</button>
         </div>
     </div>
+</div>
 
-    <script src="admin-login.js"></script>
+<script src="admin-login.js"></script>
 </body>
 </html>

@@ -13,6 +13,7 @@
 <header class="admin-header">
     <a href="/" class="admin-back-btn">← На сайт</a>
     <h1>Админ-панель</h1>
+    <button class="admin-logout-btn" onclick="logout()">Выйти</button>
 </header>
 
 <div class="tabs">
@@ -26,9 +27,25 @@
 <!-- БРОНИ -->
 <div id="bookings" class="tab-content active">
     <h2 class="tab-title">Список броней</h2>
-    <div class="bookings-layout">
 
-        <!-- Левая часть: календарь -->
+    <div class="bookings-layout bookings-layout--3col">
+        <!-- Колонка 1: Ручное добавление брони (слева) -->
+        <div class="bookings-add-col">
+            <div class="admin-add-booking">
+                <h3 class="blocked-section-title">➕ Добавить бронь</h3>
+                <form id="admin-booking-form" class="admin-booking-form">
+                    <input type="text" id="admin-name" class="input" placeholder="Имя" required>
+                    <input type="tel" id="admin-phone" class="input" placeholder="Телефон" required>
+                    <input type="date" id="admin-date" class="input" required>
+                    <select id="admin-time" class="input" required>
+                        <option value="">Сначала выберите дату</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary">Добавить</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Колонка 2: Календарь -->
         <div class="bookings-calendar-col">
             <div class="cal-nav">
                 <button id="cal-prev">&#8592;</button>
@@ -47,12 +64,11 @@
             </div>
         </div>
 
-        <!-- Правая часть: брони выбранного дня -->
+        <!-- Колонка 3: Брони выбранного дня -->
         <div class="bookings-day-col">
             <div id="bookings-day-title" class="bookings-day-title">Выберите день</div>
             <div id="bookings-container"></div>
         </div>
-
     </div>
 </div>
 
@@ -103,9 +119,11 @@
             <input type="text" id="news-title" placeholder="Заголовок" required>
             <div id="editor"></div>
             <label class="file-label">
-                <span id="file-label-text">📎 Прикрепить изображение</span>
-                <input type="file" id="news-image" accept="image/*">
+                <span id="file-label-text">📎 Прикрепить изображения (можно несколько)</span>
+                <input type="file" id="news-image" accept="image/*" multiple>
             </label>
+            <!-- Превью изображений: существующие (при редактировании) + новые -->
+            <div id="images-preview" class="images-preview-grid"></div>
             <div class="news-form-actions">
                 <button type="button" id="news-preview-btn" class="btn-preview">👁 Превью</button>
                 <button type="submit" id="news-submit">Опубликовать</button>
@@ -150,6 +168,9 @@
         </div>
     </div>
 </div>
+
+<!-- КОНТЕЙНЕР ДЛЯ TOAST-УВЕДОМЛЕНИЙ -->
+<div id="toast-container" class="toast-container"></div>
 
 <script src="admin.js"></script>
 </body>

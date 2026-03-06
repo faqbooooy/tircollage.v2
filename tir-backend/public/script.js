@@ -7,6 +7,7 @@ const bookingForm = document.getElementById('booking-form');
 const bookingSuccess = document.getElementById('booking-success');
 const dateInput = document.getElementById('date');
 const datetimeSelect = document.getElementById('datetime');
+const phoneInput = document.getElementById('phone');
 
 let blockedDates = [];
 let selectedRating = 0;
@@ -16,13 +17,15 @@ const nowLocal = new Date();
 const today = nowLocal.getFullYear() + '-' + 
               String(nowLocal.getMonth() + 1).padStart(2, '0') + '-' + 
               String(nowLocal.getDate()).padStart(2, '0');
-dateInput.setAttribute('min', today);
+
+if (dateInput) {
+    dateInput.setAttribute('min', today);
+}
 
 function filterPastSlots(slots) {
     const now = new Date();
     return slots.filter(slot => {
         const slotDate = new Date(slot.datetime);
-        // Если дата слота сегодня — проверяем время
         if (slot.datetime.split('T')[0] === today) {
             return slotDate.getHours() > now.getHours() ||
                    (slotDate.getHours() === now.getHours() && slotDate.getMinutes() > now.getMinutes());
@@ -32,6 +35,7 @@ function filterPastSlots(slots) {
 }
 
 function loadAvailableSlots(selectedDate) {
+    if (!datetimeSelect) return;
     fetch(`/api/available-slots?date=${selectedDate}&_=${Date.now()}`)
         .then(r => r.json())
         .then(slots => {
@@ -57,93 +61,127 @@ function loadAvailableSlots(selectedDate) {
 }
 
 // ====================== ВЫБОР ДАТЫ ======================
-dateInput.addEventListener('change', (e) => {
-    const date = e.target.value;
-    if (blockedDates.includes(date)) {
-        alert('В этот день запись недоступна!');
-        dateInput.value = '';
-        datetimeSelect.innerHTML = '<option value="">Выберите время</option>';
-        return;
-    }
-    loadAvailableSlots(date);
-});
+if (dateInput) {
+    dateInput.addEventListener('change', (e) => {
+        const date = e.target.value;
+        if (blockedDates.includes(date)) {
+            alert('В этот день запись недоступна!');
+            dateInput.value = '';
+            if (datetimeSelect) datetimeSelect.innerHTML = '<option value="">Выберите время</option>';
+            return;
+        }
+        loadAvailableSlots(date);
+    });
+}
 
 // ====================== ФОРМА ЗАПИСИ ======================
-bookingForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const selectedDate = dateInput.value;
-    const selectedTime = datetimeSelect.value;
-    if (!selectedTime) { alert('Выберите время!'); return; }
-    
-    // Проверка на прошлое время
-    if (new Date(selectedTime) < new Date()) { 
-        alert('К сожалению, это время уже ушло. Выберите другое.'); 
-        loadAvailableSlots(selectedDate);
-        return; 
-    }
-
-    const name = document.getElementById('name').value;
-    const phone = document.getElementById('phone').value;
-
-    try {
-        const res = await fetch('/api/book', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, phone, datetime: selectedTime })
-        });
-        const result = await res.json();
-        if (result.success) {
-            const timeStr = selectedTime.split('T')[1].slice(0, 5);
-            const dateStr = new Date(selectedDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
-            document.getElementById('booking-success-text').textContent = `${name}, ждём вас ${dateStr} в ${timeStr}`;
-            bookingForm.style.display = 'none';
-            bookingSuccess.style.display = 'block';
-        } else {
-            alert('Ошибка: ' + result.message);
-        }
-    } catch {
-        alert('Ошибка соединения с сервером');
-    }
-});
-
-document.getElementById('booking-success-btn').addEventListener('click', () => {
-    bookingSuccess.style.display = 'none';
-    bookingForm.style.display = 'flex';
-    bookingForm.reset();
-    datetimeSelect.innerHTML = '<option value="">Выберите время</option>';
-});
-
-// ====================== ТЕЛЕФОН (ИСПРАВЛЕННАЯ МАСКА) ======================
-const phoneInput = document.getElementById('phone');
-phoneInput.addEventListener('input', (e) => {
-    let input = e.target.value.replace(/\D/g, ''); // Оставляем только цифры
-    if (!input) { e.target.value = ''; return; }
-
-    let formatted = '';
-    // Обработка 8, 7 и 9 в начале
-    if (['7', '8', '9'].includes(input[0])) {
-        if (input[0] === '8') input = '7' + input.substring(1);
-        if (input[0] === '9') input = '7' + input;
+if (bookingForm) {
+    bookingForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const selectedDate = dateInput ? dateInput.value : '';
+        const selectedTime = datetimeSelect ? datetimeSelect.value : '';
+        if (!selectedTime) { alert('Выберите время!'); return; }
         
-        formatted = '+7';
-        if (input.length > 1) formatted += ' (' + input.substring(1, 4);
-        if (input.length >= 5) formatted += ') ' + input.substring(4, 7);
-        if (input.length >= 8) formatted += '-' + input.substring(7, 9);
-        if (input.length >= 10) formatted += '-' + input.substring(9, 11);
-    } else {
-        formatted = '+' + input.substring(0, 15);
-    }
-    e.target.value = formatted;
-});
+        if (new Date(selectedTime) < new Date()) { 
+            alert('К сожалению, это время уже ушло. Выберите другое.'); 
+            loadAvailableSlots(selectedDate);
+            return; 
+        }
 
-// Разрешаем удалять префикс +7 ( через Backspace
-phoneInput.addEventListener('keydown', (e) => {
-    if (e.keyCode === 8 && phoneInput.value.length <= 4) {
-        // Если пользователь хочет стереть начало, даем ему это сделать
-    }
-});
+        const name = document.getElementById('name').value;
+        const phone = document.getElementById('phone').value;
+
+        try {
+            const res = await fetch('/api/book', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, phone, datetime: selectedTime })
+            });
+            const result = await res.json();
+            if (result.success) {
+                const timeStr = selectedTime.split('T')[1].slice(0, 5);
+                const dateStr = new Date(selectedDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+                const successText = document.getElementById('booking-success-text');
+                if (successText) successText.textContent = `${name}, ждём вас ${dateStr} в ${timeStr}`;
+                if (bookingForm) bookingForm.style.display = 'none';
+                if (bookingSuccess) bookingSuccess.style.display = 'block';
+            } else {
+                alert('Ошибка: ' + result.message);
+            }
+        } catch {
+            alert('Ошибка соединения с сервером');
+        }
+    });
+}
+
+const successBtn = document.getElementById('booking-success-btn');
+if (successBtn) {
+    successBtn.addEventListener('click', () => {
+        if (bookingSuccess) bookingSuccess.style.display = 'none';
+        if (bookingForm) {
+            bookingForm.style.display = 'flex';
+            bookingForm.reset();
+        }
+        if (datetimeSelect) datetimeSelect.innerHTML = '<option value="">Выберите время</option>';
+    });
+}
+
+// ====================== ТЕЛЕФОН (МАСКА) ======================
+if (phoneInput) {
+    phoneInput.addEventListener('input', (e) => {
+        let input = e.target.value.replace(/\D/g, '');
+        if (!input) { e.target.value = ''; return; }
+
+        let formatted = '';
+        if (['7', '8', '9'].includes(input[0])) {
+            if (input[0] === '8') input = '7' + input.substring(1);
+            if (input[0] === '9') input = '7' + input;
+            
+            formatted = '+7';
+            if (input.length > 1) formatted += ' (' + input.substring(1, 4);
+            if (input.length >= 5) formatted += ') ' + input.substring(4, 7);
+            if (input.length >= 8) formatted += '-' + input.substring(7, 9);
+            if (input.length >= 10) formatted += '-' + input.substring(9, 11);
+        } else {
+            formatted = '+' + input.substring(0, 15);
+        }
+        e.target.value = formatted;
+    });
+
+    phoneInput.addEventListener('keydown', (e) => {
+        // разрешаем удалять префикс
+    });
+}
 
 // ====================== НОВОСТИ И ОТЗЫВЫ ======================
+
+// Карусель: запускает автосмену и возвращает функцию остановки
+function attachCarousel(container, slides, dots) {
+    let current = 0;
+    let intervalId = null;
+
+    function goTo(idx) {
+        slides[current].classList.remove('active');
+        if (dots[current]) dots[current].classList.remove('active');
+        current = (idx + slides.length) % slides.length;
+        slides[current].classList.add('active');
+        if (dots[current]) dots[current].classList.add('active');
+    }
+
+    function start() {
+        intervalId = setInterval(() => goTo(current + 1), 2500);
+    }
+
+    function stop() {
+        clearInterval(intervalId);
+    }
+
+    container.addEventListener('mouseenter', stop);
+    container.addEventListener('mouseleave', start);
+    start();
+    return stop;
+}
+
 async function loadNews() {
     try {
         const res = await fetch('/api/news');
@@ -152,42 +190,207 @@ async function loadNews() {
         const list = document.getElementById('news-list');
         if (!list) return;
         list.innerHTML = '';
+
         news.forEach(item => {
+            const images = item.images || (item.image ? [item.image] : []);
             const div = document.createElement('div');
             div.className = 'news-item';
+
+            // Блок изображений — карусель если несколько, одиночное если одно
+            let mediaHtml = '';
+            if (images.length > 1) {
+                mediaHtml = `<div class="news-carousel">
+                    ${images.map((src, i) => `<img src="${src}" alt="${item.title}" class="carousel-slide${i === 0 ? ' active' : ''}">`).join('')}
+                    <div class="carousel-dots">
+                        ${images.map((_, i) => `<span class="carousel-dot${i === 0 ? ' active' : ''}"></span>`).join('')}
+                    </div>
+                </div>`;
+            } else if (images.length === 1) {
+                mediaHtml = `<img src="${images[0]}" alt="${item.title}" class="news-single-img">`;
+            }
+
             div.innerHTML = `
-                ${item.image ? `<img src="${item.image}" alt="${item.title}">` : ''}
+                ${mediaHtml}
                 <div class="news-text">
-                    <h3>${item.title}</h3>
+                    <h3></h3>
                     <div class="news-preview">${item.content}</div>
-                    <small>${item.date}</small>
+                    <small></small>
                     <button class="news-read-more">Читать далее →</button>
                 </div>
             `;
+
+            div.querySelector('.news-text h3').textContent = item.title;
+            div.querySelector('.news-text small').textContent = item.date;
+
+            // Запускаем карусель если несколько изображений
+            if (images.length > 1) {
+                const carousel = div.querySelector('.news-carousel');
+                const slides = carousel.querySelectorAll('.carousel-slide');
+                const dots = carousel.querySelectorAll('.carousel-dot');
+                attachCarousel(carousel, slides, dots);
+            }
+
             div.querySelector('.news-read-more').addEventListener('click', () => openNewsModal(item));
             list.appendChild(div);
         });
     } catch (err) { console.error('Новости не загружены:', err); }
 }
 
+// Текущий индекс галереи в модале
+let galleryImages = [];
+let galleryIndex = 0;
+
 function openNewsModal(item) {
     const modal = document.getElementById('news-modal');
-    const img = document.getElementById('news-modal-img');
-    img.src = item.image || '';
-    img.style.display = item.image ? 'block' : 'none';
-    document.getElementById('news-modal-title').textContent = item.title;
-    document.getElementById('news-modal-date').textContent = item.date;
-    document.getElementById('news-modal-body').innerHTML = item.content;
+    const titleEl = document.getElementById('news-modal-title');
+    const dateEl = document.getElementById('news-modal-date');
+    const bodyEl = document.getElementById('news-modal-body');
+    if (!modal || !titleEl || !dateEl || !bodyEl) return;
+
+    titleEl.textContent = item.title;
+    dateEl.textContent = item.date;
+    bodyEl.innerHTML = item.content;
+
+    const images = item.images || (item.image ? [item.image] : []);
+    galleryImages = images;
+    galleryIndex = 0;
+
+    const singleImg = document.getElementById('news-modal-img');
+    const gallery = document.getElementById('news-modal-gallery');
+
+    if (images.length > 1) {
+        // Режим галереи
+        singleImg.style.display = 'none';
+        gallery.style.display = 'block';
+        renderGallery(0);
+    } else if (images.length === 1) {
+        // Одиночное изображение
+        gallery.style.display = 'none';
+        singleImg.src = images[0];
+        singleImg.style.display = 'block';
+        singleImg.onclick = () => openLightbox(images, 0);
+    } else {
+        // Без изображений
+        gallery.style.display = 'none';
+        singleImg.style.display = 'none';
+    }
+
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 }
 
-function closeNewsModal() {
-    document.getElementById('news-modal').style.display = 'none';
-    document.body.style.overflow = '';
+function renderGallery(idx) {
+    galleryIndex = (idx + galleryImages.length) % galleryImages.length;
+    const mainImg = document.getElementById('gallery-main-img');
+    const thumbsContainer = document.getElementById('gallery-thumbs');
+
+    mainImg.src = galleryImages[galleryIndex];
+
+    // Клик на главное фото — открыть лайтбокс
+    mainImg.onclick = () => openLightbox(galleryImages, galleryIndex);
+
+    // Миниатюры
+    thumbsContainer.innerHTML = '';
+    galleryImages.forEach((src, i) => {
+        const thumb = document.createElement('img');
+        thumb.src = src;
+        thumb.className = 'gallery-thumb' + (i === galleryIndex ? ' active' : '');
+        thumb.addEventListener('click', () => renderGallery(i));
+        thumbsContainer.appendChild(thumb);
+    });
 }
 
-document.getElementById('news-modal-close')?.addEventListener('click', closeNewsModal);
+// Навигация галереи
+const galleryPrev = document.getElementById('gallery-prev');
+const galleryNext = document.getElementById('gallery-next');
+if (galleryPrev) galleryPrev.addEventListener('click', () => renderGallery(galleryIndex - 1));
+if (galleryNext) galleryNext.addEventListener('click', () => renderGallery(galleryIndex + 1));
+
+// ====================== ЛАЙТБОКС ======================
+let lightboxImages = [];
+let lightboxIndex = 0;
+
+function openLightbox(images, startIndex) {
+    lightboxImages = images;
+    lightboxIndex = startIndex;
+    renderLightbox();
+    document.getElementById('lightbox').classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('open');
+    // Если модал новости был открыт — возвращаем его скролл
+    if (document.getElementById('news-modal').style.display === 'flex') {
+        document.body.style.overflow = 'hidden';
+    } else {
+        document.body.style.overflow = '';
+    }
+}
+
+function renderLightbox() {
+    document.getElementById('lightbox-img').src = lightboxImages[lightboxIndex];
+    const counter = document.getElementById('lightbox-counter');
+    counter.textContent = lightboxImages.length > 1
+        ? `${lightboxIndex + 1} / ${lightboxImages.length}`
+        : '';
+
+    // Стрелки видны только если несколько фото
+    const prevBtn = document.getElementById('lightbox-prev');
+    const nextBtn = document.getElementById('lightbox-next');
+    const show = lightboxImages.length > 1 ? 'flex' : 'none';
+    prevBtn.style.display = show;
+    nextBtn.style.display = show;
+}
+
+const lightboxEl = document.getElementById('lightbox');
+if (lightboxEl) {
+    document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
+    document.getElementById('lightbox-prev').addEventListener('click', () => {
+        lightboxIndex = (lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length;
+        renderLightbox();
+    });
+    document.getElementById('lightbox-next').addEventListener('click', () => {
+        lightboxIndex = (lightboxIndex + 1) % lightboxImages.length;
+        renderLightbox();
+    });
+
+    // Клик на фон закрывает лайтбокс
+    lightboxEl.addEventListener('click', (e) => {
+        if (e.target === lightboxEl || e.target.id === 'lightbox-img') closeLightbox();
+    });
+}
+
+// Клавиатура: стрелки и Escape
+document.addEventListener('keydown', (e) => {
+    const lb = document.getElementById('lightbox');
+    if (lb && lb.classList.contains('open')) {
+        if (e.key === 'ArrowLeft') { lightboxIndex = (lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length; renderLightbox(); }
+        if (e.key === 'ArrowRight') { lightboxIndex = (lightboxIndex + 1) % lightboxImages.length; renderLightbox(); }
+        if (e.key === 'Escape') closeLightbox();
+    }
+});
+
+function closeNewsModal() {
+    const modal = document.getElementById('news-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+}
+
+const modalClose = document.getElementById('news-modal-close');
+if (modalClose) {
+    modalClose.addEventListener('click', closeNewsModal);
+}
+
+// Закрытие по клику на фон модала
+const newsModal = document.getElementById('news-modal');
+if (newsModal) {
+    newsModal.addEventListener('click', (e) => {
+        if (e.target === newsModal) closeNewsModal();
+    });
+}
 
 async function loadReviews() {
     try {
@@ -199,14 +402,18 @@ async function loadReviews() {
         reviews.forEach(r => {
             const div = document.createElement('div');
             div.className = 'review-card';
+            const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
             div.innerHTML = `
                 <div class="review-header">
-                    <span class="review-name">${r.name}</span>
-                    <span class="review-stars">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</span>
+                    <span class="review-name"></span>
+                    <span class="review-stars">${stars}</span>
                 </div>
-                <p class="review-text">${r.text}</p>
-                <small class="review-date">${r.date}</small>
+                <p class="review-text"></p>
+                <small class="review-date"></small>
             `;
+            div.querySelector('.review-name').textContent = r.name;
+            div.querySelector('.review-text').textContent = r.text;
+            div.querySelector('.review-date').textContent = r.date;
             container.appendChild(div);
         });
     } catch (err) { console.error('Отзывы не загружены:', err); }
@@ -214,59 +421,86 @@ async function loadReviews() {
 
 // ====================== ИНИЦИАЛИЗАЦИЯ ======================
 document.addEventListener('DOMContentLoaded', () => {
-    loadNews();
-    loadReviews();
+    // Загружаем новости и отзывы только если есть соответствующие контейнеры
+    if (document.getElementById('news-list')) loadNews();
+    if (document.getElementById('reviews-list')) loadReviews();
 
     // Звезды в отзывах
-    document.querySelectorAll('.star').forEach(star => {
-        star.addEventListener('click', () => {
-            selectedRating = +star.dataset.value;
-            document.getElementById('review-rating').value = selectedRating;
-            document.querySelectorAll('.star').forEach(s => {
-                s.classList.toggle('active', +s.dataset.value <= selectedRating);
+    const stars = document.querySelectorAll('.star');
+    const ratingInput = document.getElementById('review-rating');
+    if (stars.length && ratingInput) {
+        stars.forEach(star => {
+            star.addEventListener('click', () => {
+                selectedRating = +star.dataset.value;
+                ratingInput.value = selectedRating;
+                stars.forEach(s => {
+                    s.classList.toggle('active', +s.dataset.value <= selectedRating);
+                });
             });
         });
-    });
+    }
 
     // Форма отзыва
     const reviewForm = document.getElementById('review-form');
+    const reviewSuccess = document.getElementById('review-success');
     if (reviewForm) {
         reviewForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!selectedRating) { alert('Выберите оценку'); return; }
+            const nameInput = document.getElementById('review-name');
+            const textInput = document.getElementById('review-text');
+            if (!nameInput || !textInput) return;
             const res = await fetch('/api/reviews', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    name: document.getElementById('review-name').value,
+                    name: nameInput.value,
                     rating: selectedRating,
-                    text: document.getElementById('review-text').value
+                    text: textInput.value
                 })
             });
             const result = await res.json();
             if (result.success) {
                 reviewForm.style.display = 'none';
-                document.getElementById('review-success').style.display = 'block';
+                if (reviewSuccess) reviewSuccess.style.display = 'block';
             }
         });
     }
 
-    // Загрузка заблокированных дат и слотов
-    fetch('/api/blocked-dates')
-        .then(r => r.json())
-        .then(dates => {
-            blockedDates = dates;
-            loadAvailableSlots(today);
-        })
-        .catch(() => loadAvailableSlots(today));
+    // Загрузка заблокированных дат и слотов (только если есть dateInput)
+    if (dateInput) {
+        fetch('/api/blocked-dates')
+            .then(r => r.json())
+            .then(dates => {
+                blockedDates = dates;
+                loadAvailableSlots(today);
+            })
+            .catch(() => loadAvailableSlots(today));
+    }
+
+    // Закрытие мобильного меню при клике на ссылку
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', () => {
+            if (navMenu && navMenu.classList.contains('active')) {
+                if (navToggle) navToggle.classList.remove('active');
+                navMenu.classList.remove('active');
+            }
+        });
+    });
 });
 
-// Прокрутка и Гамбургер (остальное без изменений)
+// ====================== ПРОКРУТКА ВВЕРХ ======================
 if (scrollTopBtn) {
-    window.addEventListener('scroll', () => scrollTopBtn.classList.toggle('visible', window.scrollY > 300));
-    scrollTopBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+    window.addEventListener('scroll', () => {
+        scrollTopBtn.classList.toggle('visible', window.scrollY > 300);
+    });
+    scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
 }
-if (navToggle) {
+
+// ====================== ГАМБУРГЕР ======================
+if (navToggle && navMenu) {
     navToggle.addEventListener('click', () => {
         navToggle.classList.toggle('active');
         navMenu.classList.toggle('active');

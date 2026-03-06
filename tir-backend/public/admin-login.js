@@ -16,6 +16,24 @@ function showMessage(message) {
     });
 }
 
+// ================= АВТОВХОД ПО COOKIE =================
+// Если у пользователя есть remember-cookie — сразу получаем свежий токен
+// и перенаправляем в админку без ввода пароля
+(async () => {
+    try {
+        const res = await fetch('/api/refresh-token', { method: 'POST' });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.token) {
+                localStorage.setItem('adminToken', data.token);
+                window.location.replace('/admin');
+            }
+        }
+    } catch {
+        // Cookie нет или истёк — просто показываем форму входа
+    }
+})();
+
 // ================= ФОРМА ВХОДА =================
 
 document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -23,12 +41,13 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
+    const remember = document.getElementById('remember-me').checked;
 
     try {
         const response = await fetch('/api/admin-login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ username, password, remember })
         });
 
         if (!response.ok) {

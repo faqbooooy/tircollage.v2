@@ -448,6 +448,16 @@ select.input:focus {
     color: #f4f4f4;
 }
 
+.admin-booking-form select.input {
+    background-color: #1a1a1a;
+    color: #f4f4f4;
+}
+
+.admin-booking-form select.input option {
+    background-color: #1a1a1a;
+    color: #f4f4f4;
+}
+
 /* ===== ПОДВАЛ ===== */
 footer {
     background-color: #333;
@@ -607,15 +617,73 @@ footer {
     margin-bottom: 20px;
 }
 
-.news-item img {
-    max-width: 400px;
-    height: auto;
+/* Одиночное изображение в карточке новости */
+.news-single-img {
+    width: 340px;
+    min-width: 340px;
+    max-height: 280px;
     border-radius: 10px;
-    object-fit: cover;
+    object-fit: contain;
+    background: #111;
+    flex-shrink: 0;
+}
+
+/* ===== КАРУСЕЛЬ НОВОСТЕЙ ===== */
+.news-carousel {
+    position: relative;
+    width: 340px;
+    min-width: 340px;
+    height: 260px;
+    border-radius: 10px;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #111;
+}
+
+.carousel-slide {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+}
+
+.carousel-slide.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.carousel-dots {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 2;
+}
+
+.carousel-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.4);
+    transition: background 0.3s ease, transform 0.3s ease;
+    cursor: default;
+}
+
+.carousel-dot.active {
+    background: #fff;
+    transform: scale(1.25);
 }
 
 .news-text {
     flex: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .news-text h3 {
@@ -632,6 +700,7 @@ footer {
 .news-text small {
     font-size: 14px;
     color: #888;
+    margin-bottom: 10px;
 }
 
 /* ===== МОДАЛЬНОЕ ОКНО ===== */
@@ -744,6 +813,96 @@ footer {
     background: rgba(255, 255, 255, 0.06);
 }
 
+.admin-logout-btn {
+    position: absolute;
+    right: 20px;
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #999;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.admin-logout-btn:hover {
+    color: #fff;
+    border-color: rgba(255, 51, 51, 0.5);
+    background: rgba(255, 51, 51, 0.1);
+}
+
+/* ===== СТРАНИЦА ЛОГИНА ===== */
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1a1a1a;
+}
+
+.login-wrap {
+    width: 100%;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.login-box {
+    background: #222;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 16px;
+    padding: 40px;
+    width: 100%;
+    max-width: 380px;
+}
+
+.login-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #f4f4f4;
+    margin-bottom: 4px;
+    text-align: center;
+}
+
+.login-subtitle {
+    font-size: 14px;
+    color: #555;
+    text-align: center;
+    margin-bottom: 28px;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.remember-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    color: #888;
+    font-size: 14px;
+    user-select: none;
+}
+
+.remember-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #ff3333;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.login-btn {
+    margin-top: 4px;
+    width: 100%;
+    padding: 13px;
+}
+
 /* ===== ВКЛАДКИ ===== */
 .tabs {
     display: flex;
@@ -799,7 +958,7 @@ footer {
     text-align: center;
 }
 
-/* ===== ТАБЛИЦА БРОНЕЙ ===== */
+/* ===== ТАБЛИЦА БРОНЕЙ (старая, не используется сейчас) ===== */
 #bookings-table {
     width: 100%;
     border-collapse: collapse;
@@ -1063,6 +1222,94 @@ footer {
     flex-shrink: 0;
 }
 
+/* Обёртка картинки с бейджем количества */
+.news-card-img-wrap {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.news-card-img-count {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 8px;
+    pointer-events: none;
+}
+
+/* ===== ПРЕВЬЮ ИЗОБРАЖЕНИЙ В ФОРМЕ НОВОСТИ ===== */
+.images-preview-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.img-preview-item {
+    position: relative;
+    width: 90px;
+    height: 70px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+}
+
+.img-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.img-preview-item--new {
+    border-color: rgba(255, 51, 51, 0.4);
+}
+
+.img-preview-remove {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 20px;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background 0.2s ease;
+}
+
+.img-preview-remove:hover {
+    background: #ff3333;
+}
+
+.img-preview-badge {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(255, 51, 51, 0.75);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    text-align: center;
+    padding: 2px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    pointer-events: none;
+}
+
 .news-card-body {
     flex: 1;
     min-width: 0;
@@ -1138,7 +1385,7 @@ footer {
 }
 
 /* ========================================
-   АДАПТИВНОСТЬ
+   АДАПТИВНОСТЬ (общие стили)
    ======================================== */
 @media (max-width: 1024px) {
     .services-grid {
@@ -1262,179 +1509,23 @@ footer {
     .news-item { flex-direction: column; }
     .news-item img { max-width: 100%; }
 
-    /* ===== АДАПТИВ АДМИНКИ ===== */
-
-    .admin-header h1 {
-        font-size: 18px;
-    }
-
-    .tabs {
-        gap: 6px;
-        padding: 10px 8px;
-        margin-top: 80px;
-    }
-
-    .tab-btn {
-        flex: 1 1 calc(50% - 6px) !important;
-        text-align: center;
-        padding: 9px 8px !important;
-        font-size: 13px !important;
-    }
-
-    .tab-content {
-        padding: 14px 10px !important;
-        max-width: 100% !important;
-    }
-
-    .tab-title {
-        font-size: 17px;
-        margin-bottom: 14px;
-    }
-
-    /* Таблица броней — обёртка со скроллом */
-    .table-scroll-wrap {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
+    .news-single-img {
         width: 100%;
-        border-radius: 12px;
+        min-width: unset;
+        max-height: 240px;
     }
 
-    #bookings-table {
-        min-width: 480px;
-    }
-
-    #bookings-table th,
-    #bookings-table td {
-        padding: 10px 12px;
-        font-size: 13px;
-        white-space: nowrap;
-    }
-
-    #bookings-table button {
-        padding: 5px 10px;
-        font-size: 12px;
-    }
-
-    /* Запрещённые даты */
-    .blocked-layout {
-        grid-template-columns: 1fr !important;
-        gap: 14px;
-    }
-
-    .blocked-section {
-        padding: 16px 14px;
-    }
-
-    #block-form,
-    #block-range-form {
-        gap: 8px;
-    }
-
-    .range-times {
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    #block-form input[type="date"],
-    #block-range-form input[type="date"],
-    #block-range-form input[type="time"] {
+    .news-carousel {
         width: 100%;
-        font-size: 14px;
+        min-width: unset;
+        height: 220px;
     }
 
-    #block-form button,
-    #block-range-form button {
-        width: 100%;
-    }
-
-    #blocked-list li,
-    #blocked-ranges-list li {
-        font-size: 13px;
-    }
-
-    /* Редактор новости */
-    .news-editor-wrap {
-        padding: 18px 14px !important;
-    }
-
-    #news-form input[type="text"] {
-        font-size: 14px;
-    }
-
-    #editor {
-        min-height: 130px;
-    }
-
-    #news-submit {
-        padding: 12px;
-        font-size: 14px;
-    }
-
-    /* Карточки опубликованных новостей */
-    .news-card {
-        flex-wrap: wrap;
-        gap: 10px;
-        padding: 12px 14px;
-    }
-
-    .news-card-img {
-        width: 44px;
-        height: 44px;
-    }
-
-    .news-card-body {
-        flex: 1;
-    }
-
-    .news-card-body strong {
-        font-size: 13px;
-        white-space: normal;
-    }
-
-    .news-actions {
-        width: 100%;
-        justify-content: flex-end;
-        gap: 6px;
-    }
-
-    .news-actions button {
-        flex: 1;
-        text-align: center;
-        padding: 8px 6px;
-        font-size: 12px;
-    }
+    .gallery-main-img { max-height: 300px; }
+    .gallery-thumb { width: 56px; height: 42px; }
 }
 
-@media (max-width: 480px) {
-    .tab-btn {
-        flex: 1 1 100% !important;
-        font-size: 13px !important;
-    }
-
-    .admin-header h1 {
-        font-size: 16px;
-    }
-
-    .tab-content {
-        padding: 10px 8px !important;
-    }
-
-    #bookings-table th,
-    #bookings-table td {
-        padding: 8px 10px;
-        font-size: 12px;
-    }
-
-    .news-editor-wrap {
-        padding: 14px 10px !important;
-    }
-
-    .blocked-section {
-        padding: 14px 12px;
-    }
-}
-
-/* ====================== МОБИЛЬНАЯ КНОПКА ЗАПИСИ ====================== */
+/* ===== ДОПОЛНИТЕЛЬНЫЕ СТИЛИ АДМИНКИ ===== */
 .mobile-book-btn {
     display: none;
     position: fixed;
@@ -1468,7 +1559,6 @@ footer {
     }
 }
 
-/* ====================== ЭКРАН СПАСИБО ====================== */
 .booking-success {
     max-width: 500px;
     margin: 0 auto;
@@ -1496,7 +1586,6 @@ footer {
     line-height: 1.6;
 }
 
-/* ====================== НОВОСТИ: ПРЕВЬЮ И КНОПКА ====================== */
 .news-preview {
     display: -webkit-box;
     -webkit-line-clamp: 3;
@@ -1515,13 +1604,14 @@ footer {
     padding: 0;
     transition: color 0.2s ease;
     letter-spacing: 0.3px;
+    margin-top: auto;
+    align-self: flex-start;
 }
 
 .news-read-more:hover {
     color: #cc2929;
 }
 
-/* ====================== МОДАЛКА НОВОСТИ ====================== */
 .news-modal {
     display: none;
     position: fixed;
@@ -1573,10 +1663,178 @@ footer {
 
 .news-modal-img {
     width: 100%;
-    max-height: 300px;
-    object-fit: cover;
+    max-height: 420px;
+    object-fit: contain;
+    background: #111;
     border-radius: 10px;
     margin-bottom: 24px;
+    display: block;
+}
+
+/* ===== ГАЛЕРЕЯ В МОДАЛЕ ===== */
+.news-modal-gallery {
+    margin-bottom: 24px;
+}
+
+.gallery-main-wrap {
+    position: relative;
+    width: 100%;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #111;
+}
+
+.gallery-main-img {
+    width: 100%;
+    max-height: 480px;
+    object-fit: contain;
+    background: #111;
+    display: block;
+    border-radius: 10px;
+    transition: opacity 0.25s ease;
+}
+
+.gallery-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.55);
+    border: none;
+    color: #fff;
+    font-size: 32px;
+    line-height: 1;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+    transition: background 0.2s ease;
+}
+
+.gallery-arrow:hover {
+    background: rgba(255, 51, 51, 0.7);
+}
+
+.gallery-arrow--prev { left: 10px; }
+.gallery-arrow--next { right: 10px; }
+
+.gallery-thumbs {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.gallery-thumb {
+    width: 72px;
+    height: 52px;
+    object-fit: cover;
+    border-radius: 6px;
+    cursor: pointer;
+    opacity: 0.55;
+    border: 2px solid transparent;
+    transition: opacity 0.2s ease, border-color 0.2s ease;
+}
+
+.gallery-thumb:hover {
+    opacity: 0.85;
+}
+
+.gallery-thumb.active {
+    opacity: 1;
+    border-color: #ff3333;
+}
+
+/* ===== ЛАЙТБОКС (полноэкранный просмотр) ===== */
+.lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.96);
+    z-index: 3000;
+    align-items: center;
+    justify-content: center;
+}
+
+.lightbox.open {
+    display: flex;
+}
+
+.lightbox-img {
+    max-width: 92vw;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: 6px;
+    user-select: none;
+}
+
+.lightbox-close {
+    position: fixed;
+    top: 18px;
+    right: 22px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #fff;
+    font-size: 20px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease;
+    z-index: 3001;
+}
+
+.lightbox-close:hover {
+    background: rgba(255, 51, 51, 0.6);
+}
+
+.lightbox-arrow {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #fff;
+    font-size: 44px;
+    line-height: 1;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease;
+    z-index: 3001;
+}
+
+.lightbox-arrow:hover {
+    background: rgba(255, 51, 51, 0.6);
+}
+
+.lightbox-arrow--prev { left: 16px; }
+.lightbox-arrow--next { right: 16px; }
+
+.lightbox-counter {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+    letter-spacing: 1px;
+}
+
+/* Курсор-лупа на кликабельных фото в модале */
+.gallery-main-img,
+.news-modal-img {
+    cursor: zoom-in;
 }
 
 .news-modal-title {
@@ -1623,15 +1881,56 @@ footer {
     .booking-success-text { font-size: 16px; }
 }
 
-/* ===== КАЛЕНДАРЬ БРОНЕЙ ===== */
-.bookings-layout {
+/* ===== ТРЁХКОЛОНОЧНАЯ РАСКЛАДКА ДЛЯ БРОНЕЙ (НОВОЕ) ===== */
+.bookings-layout--3col {
     display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: 24px;
+    grid-template-columns: 280px 300px 1fr;
+    gap: 20px;
     align-items: start;
 }
 
-/* Левая колонка — календарь */
+/* Стили для колонки добавления (ручная бронь) */
+.bookings-add-col {
+    background: #222;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 14px;
+    padding: 16px;
+    position: sticky;
+    top: 100px;
+    height: 100%;
+}
+
+.bookings-add-col .admin-add-booking {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+.bookings-add-col .admin-booking-form {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.bookings-add-col .admin-booking-form input,
+.bookings-add-col .admin-booking-form select {
+    padding: 10px;
+    font-size: 14px;
+}
+
+.bookings-add-col .admin-booking-form button {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+}
+
+/* Календарь броней */
 .bookings-calendar-col {
     background: #222;
     border: 1px solid rgba(255,255,255,0.07);
@@ -1763,7 +2062,7 @@ footer {
     border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
-/* ===== КАРТОЧКИ БРОНЕЙ ===== */
+/* Карточки броней */
 #bookings-container {
     display: flex;
     flex-direction: column;
@@ -1843,6 +2142,15 @@ footer {
     background: rgba(255, 255, 255, 0.03);
 }
 
+.booking-item--past {
+    opacity: 0.5;
+    background: rgba(255,255,255,0.02);
+}
+
+.booking-item--past .booking-time {
+    color: #888;
+}
+
 .booking-time {
     font-size: 20px;
     font-weight: 700;
@@ -1882,7 +2190,7 @@ footer {
     color: #ff4444;
 }
 
-/* ===== КНОПКА ПРЕВЬЮ ===== */
+/* Кнопка превью */
 .news-form-actions {
     display: flex;
     gap: 10px;
@@ -1907,7 +2215,7 @@ footer {
     border-color: rgba(255, 255, 255, 0.2);
 }
 
-/* ===== МОДАЛКА ПРЕВЬЮ ===== */
+/* Модалка превью */
 .news-preview-modal {
     display: none;
     position: fixed;
@@ -2001,60 +2309,7 @@ footer {
 
 .preview-body p { margin-bottom: 12px; }
 
-@media (max-width: 768px) {
-    /* Календарь на мобиле — стек */
-    .bookings-layout {
-        grid-template-columns: 1fr !important;
-    }
-
-    .bookings-calendar-col {
-        position: static;
-        padding: 16px;
-    }
-
-    .cal-day-num {
-        font-size: 12px;
-    }
-
-    .cal-day-count {
-        font-size: 9px;
-        padding: 1px 4px;
-    }
-
-    .booking-item {
-        flex-wrap: wrap;
-        gap: 8px;
-        padding: 12px 14px;
-    }
-
-    .booking-phone {
-        min-width: auto;
-        width: 100%;
-        order: 3;
-    }
-
-    .booking-delete-btn {
-        order: 4;
-        width: 100%;
-        text-align: center;
-        padding: 8px;
-    }
-
-    .news-preview-body {
-        padding: 20px 16px;
-    }
-
-    .preview-title {
-        font-size: 20px;
-    }
-
-    .btn-preview {
-        padding: 12px 12px;
-        font-size: 13px;
-    }
-}
-
-/* ====================== ОТЗЫВЫ (основной сайт) ====================== */
+/* Отзывы на главной */
 #reviews-list {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -2168,7 +2423,7 @@ footer {
     line-height: 1.6;
 }
 
-/* ====================== ОТЗЫВЫ (админка) ====================== */
+/* Отзывы в админке */
 .reviews-admin-layout {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -2268,20 +2523,155 @@ footer {
     background: rgba(255, 77, 77, 0.25);
 }
 
+/* ===== TOAST-УВЕДОМЛЕНИЯ ===== */
+.toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    background: #333;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    font-size: 14px;
+    max-width: 300px;
+    animation: slideIn 0.3s ease;
+    border-left: 4px solid;
+}
+
+.toast.success {
+    border-left-color: #4caf50;
+    background: #2a3a2a;
+}
+
+.toast.error {
+    border-left-color: #f44336;
+    background: #3a2a2a;
+}
+
+.toast.info {
+    border-left-color: #2196f3;
+    background: #2a2a3a;
+}
+
+.toast.warning {
+    border-left-color: #ff9800;
+    background: #3a2a2a;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+.toast.fade-out {
+    animation: fadeOut 0.3s ease forwards;
+}
+
+@keyframes fadeOut {
+    to { opacity: 0; transform: translateX(100%); }
+}
+
+/* ===== АДАПТАЦИЯ ДЛЯ ПЛАНШЕТОВ ===== */
+@media (max-width: 1100px) {
+    .bookings-layout--3col {
+        grid-template-columns: 1fr 1fr;
+    }
+    .bookings-calendar-col {
+        grid-column: span 2;
+    }
+    .bookings-add-col,
+    .bookings-day-col {
+        grid-column: span 1;
+    }
+}
+
+/* ===== МОБИЛЬНАЯ ВЕРСИЯ (исправленная) ===== */
 @media (max-width: 768px) {
-    #reviews-list {
+    .bookings-layout--3col {
         grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    .bookings-calendar-col,
+    .bookings-add-col,
+    .bookings-day-col {
+        grid-column: span 1;
+        position: static;
     }
 
-    .review-form-wrap {
-        padding: 20px 16px;
+    /* Календарь: без горизонтального скролла, равные колонки */
+    .bookings-calendar-col {
+        overflow-x: hidden;
+    }
+    .cal-grid {
+        grid-template-columns: repeat(7, 1fr);
+        gap: 2px;
+    }
+    .cal-day {
+        padding: 4px 0;
+        font-size: 12px;
+    }
+    .cal-day-num {
+        font-size: 12px;
+    }
+    .cal-day-count {
+        font-size: 8px;
+        padding: 1px 3px;
     }
 
-    .star-rating {
-        font-size: 28px;
+    /* Форма ручного добавления: кнопка всегда видна */
+    .admin-booking-form {
+        gap: 8px;
+    }
+    .admin-booking-form input,
+    .admin-booking-form select {
+        padding: 12px 10px;
+        font-size: 16px;
+    }
+    .admin-booking-form button {
+        width: 100%;
+        padding: 14px;
+        font-size: 16px;
+        margin-top: 5px;
+        display: block;
+    }
+    .bookings-add-col .admin-booking-form {
+        flex: none;
+        justify-content: normal;
     }
 
+    /* Отзывы в админке на мобильных */
     .reviews-admin-layout {
         grid-template-columns: 1fr !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .tab-btn {
+        flex: 1 1 100% !important;
+        font-size: 13px !important;
+    }
+
+    .admin-header h1 {
+        font-size: 16px;
+    }
+
+    .tab-content {
+        padding: 10px 8px !important;
+    }
+
+    .news-editor-wrap {
+        padding: 14px 10px !important;
+    }
+
+    .blocked-section {
+        padding: 14px 12px;
     }
 }
