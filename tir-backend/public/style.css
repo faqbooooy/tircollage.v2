@@ -5,8 +5,27 @@
     font-family: 'Roboto', sans-serif;
 }
 
+h1, h2, h3,
+.hero-title,
+.section-title,
+.card-title,
+.nav-logo {
+    font-family: 'Bebas Neue', 'Roboto', sans-serif;
+    letter-spacing: 2px;
+}
+
+/* [!] ОБНОВЛЁННЫЙ body с добавленным паттерном (пункт 2) */
 body {
-    background-color: #1a1a1a;
+    background-color: #161616;
+    background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(rgba(0,0,0,0.15) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.15) 1px, transparent 1px);
+    background-size: 20px 20px, 20px 20px, 4px 4px, 4px 4px;
+    background-position: -1px -1px, -1px -1px, -1px -1px, -1px -1px;
+    background-repeat: repeat, repeat, repeat, repeat;
+    background-attachment: fixed;
     color: #f4f4f4;
     line-height: 1.6;
 }
@@ -33,7 +52,7 @@ header {
     position: fixed;
     top: 0;
     width: 100%;
-    background: rgba(26, 26, 26, 0.9);
+    background: rgba(22, 22, 22, 0.92);
     backdrop-filter: blur(10px);
     color: #fff;
     z-index: 100;
@@ -205,21 +224,63 @@ nav ul {
 
 /* ===== HERO ===== */
 .hero {
-    background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('https://images.unsplash.com/photo-1584972647552-9b8d0853856d?ixlib=rb-1.2.1&auto=format&fit=crop&w=1920&q=80') no-repeat center/cover;
+    position: relative;
     color: #fff;
     text-align: center;
-    padding: 150px 0;
-    position: relative;
+    padding: 180px 0 160px;
+    overflow: hidden;
     animation: fadeInUp 1.2s ease-out;
 }
 
+/* Фоновое изображение тира с параллакс-эффектом */
+.hero-bg {
+    position: absolute;
+    inset: -40px;
+    background: url('https://images.unsplash.com/photo-1595590424283-b8f17842773f?w=1920&q=80&auto=format&fit=crop') center/cover no-repeat;
+    transform: translateZ(0);
+    filter: brightness(0.35) saturate(0.7);
+    z-index: 0;
+}
+
+.hero-video {
+    position: absolute;
+    inset: -40px;
+    width: calc(100% + 80px);
+    height: calc(100% + 80px);
+    object-fit: cover;
+    z-index: 0;
+    opacity: 0;
+    transition: opacity 1s ease;
+    filter: brightness(0.35) saturate(0.7);
+    pointer-events: none;
+}
+
+/* Многослойный оверлей: тёмный снизу + красный отлив сверху */
+.hero-overlay {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(to bottom,
+            rgba(80, 0, 0, 0.25) 0%,
+            rgba(0, 0, 0, 0.1) 40%,
+            rgba(0, 0, 0, 0.7) 100%
+        );
+    z-index: 1;
+}
+
+.hero-content {
+    position: relative;
+    z-index: 2;
+}
+
 .hero-title {
-    font-size: 64px;
-    font-weight: 800;
-    margin-bottom: 25px;
+    font-size: 88px;
+    font-weight: 400;
+    margin-bottom: 20px;
     text-transform: uppercase;
-    letter-spacing: 3px;
-    text-shadow: 0 2px 15px rgba(0, 0, 0, 0.7);
+    letter-spacing: 6px;
+    text-shadow: 0 4px 30px rgba(0, 0, 0, 0.8);
+    line-height: 1;
     animation: fadeInUp 1s ease-out 0.3s backwards;
 }
 
@@ -238,14 +299,44 @@ nav ul {
     animation: scaleIn 1s ease-out 0.7s backwards;
 }
 
+/* ===== ДЕКОРАТИВНЫЙ РАЗДЕЛИТЕЛЬ ===== */
+.section-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 8px 0;
+    opacity: 0.5;
+}
+
+.section-divider::before,
+.section-divider::after {
+    content: '';
+    flex: 1;
+    max-width: 200px;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(255, 51, 51, 0.5));
+}
+
+.section-divider::after {
+    background: linear-gradient(to left, transparent, rgba(255, 51, 51, 0.5));
+}
+
+.section-divider-icon {
+    width: 8px;
+    height: 8px;
+    background: #ff3333;
+    transform: rotate(45deg);
+    flex-shrink: 0;
+}
+
 /* ===== СЕКЦИИ ===== */
 .section {
     padding: 80px 0;
     text-align: center;
-    background: #1a1a1a;
-    margin: 20px 0;
-    border-radius: 15px;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    background: none;
+    margin: 0;
+    border-radius: 0;
     opacity: 0;
     animation: fadeInUp 1s ease-out forwards;
 }
@@ -254,11 +345,14 @@ nav ul {
 .section:nth-child(even) { animation-delay: 0.4s; }
 
 .section-title {
-    font-size: 40px;
-    font-weight: 700;
+    font-size: 52px;
+    font-weight: 400;
     color: #f4f4f4;
     margin-bottom: 50px;
     position: relative;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    line-height: 1;
 }
 
 .section-title::after {
@@ -287,15 +381,16 @@ nav ul {
 }
 
 .service-card {
-    background: linear-gradient(145deg, #1a1a1a, #222);
+    background: linear-gradient(145deg, rgba(32,32,32,0.95), rgba(28,28,28,0.95));
     padding: 50px 35px;
     border-radius: 20px;
-    box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.3),
-                -10px -10px 30px rgba(255, 255, 255, 0.05);
+    box-shadow: 10px 10px 30px rgba(0, 0, 0, 0.5),
+                -1px -1px 0px rgba(255, 255, 255, 0.04);
     transition: all 0.3s ease-in-out;
-    border: 1px solid rgba(255, 51, 51, 0.1);
+    border: 1px solid rgba(255, 51, 51, 0.12);
     opacity: 0;
     animation: scaleIn 0.8s ease-out forwards;
+    backdrop-filter: blur(4px);
 }
 
 .service-card:nth-child(1) { animation-delay: 0.2s; }
@@ -309,12 +404,37 @@ nav ul {
     border-color: #ff3333;
 }
 
+.service-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 24px;
+    color: #ff3333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 51, 51, 0.08);
+    border: 1px solid rgba(255, 51, 51, 0.2);
+    border-radius: 16px;
+    transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.service-icon svg {
+    width: 32px;
+    height: 32px;
+}
+
+.service-card:hover .service-icon {
+    background: rgba(255, 51, 51, 0.18);
+    border-color: rgba(255, 51, 51, 0.5);
+}
+
 .card-title {
-    font-size: 26px;
-    font-weight: 700;
+    font-size: 28px;
+    font-weight: 400;
     color: #fff;
-    margin-bottom: 20px;
-    letter-spacing: 1px;
+    margin-bottom: 16px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
 }
 
 .card-text {
@@ -326,22 +446,20 @@ nav ul {
 /* ===== ЦЕНЫ ===== */
 .pricing-list {
     list-style: none;
-    max-width: 600px;
-    margin: 0 auto;
+    width: 100%;
+    margin: 0;
     text-align: left;
 }
 
 .pricing-item {
     font-size: 18px;
     padding: 15px 0;
-    border-bottom: 1px solid #ddd;
-    opacity: 0;
-    animation: fadeInUp 0.8s ease-out forwards;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.pricing-item:nth-child(1) { animation-delay: 0.2s; }
-.pricing-item:nth-child(2) { animation-delay: 0.4s; }
-.pricing-item:nth-child(3) { animation-delay: 0.6s; }
+.pricing-item:last-child {
+    border-bottom: none;
+}
 
 .pricing-item span {
     font-weight: 700;
@@ -439,28 +557,29 @@ select.input:focus {
 }
 
 .booking-form select.input {
-    background-color: #1a1a1a;
+    background-color: #1e1e1e;
     color: #f4f4f4;
 }
 
 .booking-form select.input option {
-    background-color: #1a1a1a;
+    background-color: #1e1e1e;
     color: #f4f4f4;
 }
 
 .admin-booking-form select.input {
-    background-color: #1a1a1a;
+    background-color: #1e1e1e;
     color: #f4f4f4;
 }
 
 .admin-booking-form select.input option {
-    background-color: #1a1a1a;
+    background-color: #1e1e1e;
     color: #f4f4f4;
 }
 
 /* ===== ПОДВАЛ ===== */
 footer {
-    background-color: #333;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
     color: #fff;
     padding: 30px 0;
     text-align: center;
@@ -481,6 +600,18 @@ footer {
     display: flex;
     flex-direction: column;
     gap: 40px;
+}
+
+/* Рамки для "О нас" и "Цены" — в стиле weapon-item */
+.about-box,
+.pricing-box {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    padding: 40px;
+    text-align: left;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    opacity: 0;
+    animation: fadeInUp 0.8s ease-out 0.2s forwards;
 }
 
 .weapon-item {
@@ -566,7 +697,7 @@ footer {
 .gallery-page {
     padding: 120px 0 80px;
     text-align: center;
-    background: #1a1a1a;
+    background: none;
 }
 
 .gallery-title {
@@ -611,10 +742,12 @@ footer {
 .news-item {
     display: flex;
     gap: 20px;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     padding: 20px;
     border-radius: 10px;
     margin-bottom: 20px;
+    backdrop-filter: blur(4px);
 }
 
 /* Одиночное изображение в карточке новости */
@@ -718,7 +851,7 @@ footer {
 }
 
 .modal-content {
-    background: #2a2a2a;
+    background: #262626;
     padding: 20px;
     border-radius: 10px;
     width: 90%;
@@ -777,7 +910,7 @@ footer {
     top: 0;
     width: 100%;
     height: 80px;
-    background: rgba(26, 26, 26, 0.95);
+    background: rgba(22, 22, 22, 0.96);
     backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
@@ -839,7 +972,16 @@ footer {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #1a1a1a;
+    /* Используем такой же фон, как и на основной странице */
+    background-color: #161616;
+    background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(rgba(0,0,0,0.15) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.15) 1px, transparent 1px);
+    background-size: 20px 20px, 20px 20px, 4px 4px, 4px 4px;
+    background-position: -1px -1px, -1px -1px, -1px -1px, -1px -1px;
+    background-attachment: fixed;
 }
 
 .login-wrap {
@@ -850,7 +992,7 @@ footer {
 }
 
 .login-box {
-    background: #222;
+    background: #242424;
     border: 1px solid rgba(255, 255, 255, 0.07);
     border-radius: 16px;
     padding: 40px;
@@ -1003,7 +1145,7 @@ footer {
 }
 
 .blocked-section {
-    background: #222;
+    background: #242424;
     border: 1px solid rgba(255, 255, 255, 0.07);
     border-radius: 14px;
     padding: 24px;
@@ -1106,7 +1248,7 @@ footer {
 .news-editor-wrap {
     max-width: 620px;
     margin: 0 auto;
-    background: #222;
+    background: #242424;
     border: 1px solid rgba(255, 255, 255, 0.07);
     border-radius: 16px;
     padding: 32px 28px;
@@ -1123,7 +1265,7 @@ footer {
     padding: 12px 16px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 10px;
-    background: #2a2a2a;
+    background: #262626;
     color: #f4f4f4;
     font-size: 15px;
     width: 100%;
@@ -1136,7 +1278,7 @@ footer {
 }
 
 #editor {
-    background: #2a2a2a;
+    background: #262626;
     border-radius: 10px;
     min-height: 200px;
     color: #f4f4f4;
@@ -1202,7 +1344,7 @@ footer {
     display: flex;
     align-items: center;
     gap: 16px;
-    background: #222;
+    background: #242424;
     border: 1px solid rgba(255, 255, 255, 0.07);
     border-radius: 12px;
     padding: 16px 20px;
@@ -1424,7 +1566,7 @@ footer {
         left: -100%;
         width: 100%;
         height: calc(100vh - 80px);
-        background: rgba(26, 26, 26, 0.95);
+        background: rgba(22, 22, 22, 0.96);
         flex-direction: column;
         justify-content: center;
         transition: left 0.3s ease;
@@ -1455,7 +1597,7 @@ footer {
     }
 
     .hero { padding: 80px 10px; }
-    .hero-title { font-size: 28px; }
+    .hero-title { font-size: 52px; letter-spacing: 3px; }
     .hero-subtitle { font-size: 16px; }
 
     .section {
@@ -1463,7 +1605,7 @@ footer {
         margin: 10px 0;
     }
 
-    .section-title { font-size: 24px; }
+    .section-title { font-size: 36px; letter-spacing: 2px; }
     .section-text { font-size: 16px; }
 
     .services-grid {
@@ -1628,7 +1770,7 @@ footer {
 }
 
 .news-modal-content {
-    background: #222;
+    background: #242424;
     border-radius: 16px;
     padding: 40px;
     max-width: 700px;
@@ -1891,7 +2033,7 @@ footer {
 
 /* Стили для колонки добавления (ручная бронь) */
 .bookings-add-col {
-    background: #222;
+    background: #242424;
     border: 1px solid rgba(255,255,255,0.07);
     border-radius: 14px;
     padding: 16px;
@@ -1932,7 +2074,7 @@ footer {
 
 /* Календарь броней */
 .bookings-calendar-col {
-    background: #222;
+    background: #242424;
     border: 1px solid rgba(255,255,255,0.07);
     border-radius: 14px;
     padding: 20px;
@@ -2232,7 +2374,7 @@ footer {
 }
 
 .news-preview-modal-content {
-    background: #1a1a1a;
+    background: none;
     border-radius: 16px;
     max-width: 720px;
     width: 100%;
@@ -2417,10 +2559,30 @@ footer {
 
 .review-success {
     text-align: center;
-    padding: 20px;
+    padding: 32px 20px;
     color: #d1d1d1;
     font-size: 15px;
     line-height: 1.6;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 14px;
+}
+
+.review-success-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+}
+
+.review-success-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #f4f4f4;
+    margin-bottom: 6px;
+}
+
+.review-success-sub {
+    font-size: 14px;
+    color: #777;
 }
 
 /* Отзывы в админке */
@@ -2443,7 +2605,7 @@ footer {
 }
 
 .admin-review-card {
-    background: #222;
+    background: #242424;
     border: 1px solid rgba(255, 255, 255, 0.07);
     border-radius: 12px;
     padding: 16px;
@@ -2673,5 +2835,158 @@ footer {
 
     .blocked-section {
         padding: 14px 12px;
+    }
+}
+
+/* [!] УСИЛЕНИЕ КОНТРАСТА СЕКЦИЙ (п.1) */
+.service-card,
+.weapon-item,
+.about-box,
+.pricing-box,
+.review-card,
+.news-card,
+.review-form-wrap {
+    box-shadow: 0 10px 30px -10px rgba(255, 51, 51, 0.25);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.service-card:hover,
+.weapon-item:hover,
+.about-box:hover,
+.pricing-box:hover,
+.review-card:hover,
+.news-card:hover,
+.review-form-wrap:hover {
+    box-shadow: 0 15px 40px -5px rgba(255, 51, 51, 0.45);
+    transform: translateY(-2px);
+}
+
+/* [!] ФОНОВЫЕ ИЗОБРАЖЕНИЯ ДЛЯ СЕКЦИЙ (п.5) */
+#about,
+#pricing,
+#reviews,
+#contacts,
+#booking {
+    position: relative;
+    isolation: isolate; /* чтобы псевдоэлемент был под контентом */
+}
+
+#about::before,
+#pricing::before,
+#reviews::before,
+#contacts::before,
+#booking::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url('https://images.unsplash.com/photo-1595590424283-b8f17842773f?w=1920&q=80&auto=format&fit=crop');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed; /* фиксируем для эффекта глубины */
+    opacity: 0.06; /* очень низкая непрозрачность */
+    filter: blur(4px); /* лёгкое размытие */
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* Для мобильных убираем фиксацию, чтобы не было сильных смещений */
+@media (max-width: 768px) {
+    #about::before,
+    #pricing::before,
+    #reviews::before,
+    #contacts::before,
+    #booking::before {
+        background-attachment: scroll;
+    }
+}
+
+/* [!] ПЛАВНЫЙ ПЕРЕХОД ОТ HERO К КОНТЕНТУ */
+.hero::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 120px;
+    background: linear-gradient(to bottom, transparent, #161616);
+    pointer-events: none;
+    z-index: 1;
+}
+
+@media (max-width: 768px) {
+    .hero::after {
+        height: 80px;
+    }
+}
+
+/* [!] УВЕЛИЧЕНИЕ ПЛОТНОСТИ ФОНА КАРТОЧЕК (НОВОСТИ, О НАС, АРСЕНАЛ, ЦЕНЫ, ОТЗЫВЫ, УСЛУГИ) */
+.news-item,
+.about-box,
+.weapon-item,
+.pricing-box,
+.review-card,
+.review-form-wrap {
+    background: rgba(30, 30, 30, 0.85) !important;
+    border: 1px solid rgba(255, 51, 51, 0.15);
+}
+
+.service-card {
+    background: linear-gradient(145deg, rgba(40, 40, 40, 0.9), rgba(30, 30, 30, 0.9)) !important;
+    border: 1px solid rgba(255, 51, 51, 0.2);
+}
+
+/* ===== ТЕЛЕФОН В ШАПКЕ ===== */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.header-phone {
+    color: #fff;
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 500;
+    transition: color 0.3s ease;
+    white-space: nowrap;
+}
+
+.header-phone:hover {
+    color: #ff3333;
+}
+
+/* Скрываем на мобильных (вместе с кнопкой) */
+@media (max-width: 768px) {
+    .header-actions {
+        display: none;
+    }
+}
+
+/* Увеличиваем отступ между навигационным меню и блоком с кнопкой/телефоном */
+.nav-menu {
+    margin-right: 40px;
+}
+
+/* Увеличиваем расстояние между кнопкой и номером телефона */
+.header-actions {
+    gap: 30px;
+}
+
+/* Пункт с телефоном по умолчанию скрыт (десктоп) */
+.mobile-phone-item {
+    display: none;
+}
+
+/* На мобильных показываем в меню */
+@media (max-width: 768px) {
+    .mobile-phone-item {
+        display: list-item;
+    }
+    
+    /* Можно добавить разделитель сверху для красоты */
+    .mobile-phone-item .nav-link {
+        border-top: 1px solid rgba(255,255,255,0.1);
+        margin-top: 8px;
+        padding-top: 16px;
     }
 }

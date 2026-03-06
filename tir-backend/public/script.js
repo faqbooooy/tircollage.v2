@@ -90,12 +90,21 @@ if (bookingForm) {
 
         const name = document.getElementById('name').value;
         const phone = document.getElementById('phone').value;
+        const website = document.getElementById('website')?.value || '';
+
+        // Проверка российского номера до отправки на сервер
+        const phoneDigits = phone.replace(/\D/g, '');
+        const isRussianPhone = phoneDigits.length === 11 && (phoneDigits[0] === '7' || phoneDigits[0] === '8');
+        if (!isRussianPhone) {
+            alert('Укажите российский номер телефона (+7 или 8)');
+            return;
+        }
 
         try {
             const res = await fetch('/api/book', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, phone, datetime: selectedTime })
+                body: JSON.stringify({ name, phone, datetime: selectedTime, website })
             });
             const result = await res.json();
             if (result.success) {
@@ -392,6 +401,33 @@ if (newsModal) {
     });
 }
 
+// ====================== ОТЗЫВЫ ======================
+
+const REVIEW_KEY = 'reviewSubmitted'; // ключ в localStorage
+const REVIEW_TTL = 7 * 24 * 60 * 60 * 1000; // 7 дней
+
+// Сохраняем факт отправки отзыва: имя, ID и время
+function saveReviewSubmitted(name, id) {
+    localStorage.setItem(REVIEW_KEY, JSON.stringify({
+        id: id ?? null,
+        name: name.trim().toLowerCase(),
+        submittedAt: Date.now()
+    }));
+}
+
+// Читаем сохранённое состояние (null если нет или истёк)
+function getReviewSubmitted() {
+    try {
+        const data = JSON.parse(localStorage.getItem(REVIEW_KEY));
+        if (!data) return null;
+        if (Date.now() - data.submittedAt > REVIEW_TTL) {
+            localStorage.removeItem(REVIEW_KEY);
+            return null;
+        }
+        return data;
+    } catch { return null; }
+}
+
 async function loadReviews() {
     try {
         const res = await fetch('/api/reviews');
@@ -416,7 +452,49 @@ async function loadReviews() {
             div.querySelector('.review-date').textContent = r.date;
             container.appendChild(div);
         });
+
+        // Проверяем: был ли отзыв от этого пользователя одобрен
+        checkReviewStatus(reviews);
     } catch (err) { console.error('Отзывы не загружены:', err); }
+}
+
+// Проверяем статус отзыва по данным в localStorage vs одобренные отзывы
+function checkReviewStatus(approvedReviews) {
+    const submitted = getReviewSubmitted();
+    if (!submitted) return; // пользователь ещё не оставлял отзыв
+
+    const reviewForm = document.getElementById('review-form');
+    const reviewSuccess = document.getElementById('review-success');
+    const pendingMsg = document.getElementById('review-pending-msg');
+    const approvedMsg = document.getElementById('review-approved-msg');
+    if (!reviewForm || !reviewSuccess) return;
+
+    // Прячем форму, показываем блок статуса
+    reviewForm.style.display = 'none';
+    reviewSuccess.style.display = 'block';
+
+    let isApproved = false;
+
+    // Если есть сохранённый ID — проверяем по нему (надёжно для нового кода)
+    if (submitted.id) {
+        isApproved = approvedReviews.some(r => r.id === submitted.id);
+    } else {
+        // Для старых записей, где ID ещё не сохранялся, оставляем проверку по имени
+        isApproved = approvedReviews.some(
+            r => r.name.trim().toLowerCase() === submitted.name
+        );
+    }
+
+    if (isApproved) {
+        if (pendingMsg) pendingMsg.style.display = 'none';
+        if (approvedMsg) approvedMsg.style.display = 'block';
+        // Отзыв опубликован — через 3 дня сбросим флаг чтобы снова можно было написать
+        const daysSince = (Date.now() - submitted.submittedAt) / (24 * 60 * 60 * 1000);
+        if (daysSince > 3) localStorage.removeItem(REVIEW_KEY);
+    } else {
+        if (pendingMsg) pendingMsg.style.display = 'block';
+        if (approvedMsg) approvedMsg.style.display = 'none';
+    }
 }
 
 // ====================== ИНИЦИАЛИЗАЦИЯ ======================
@@ -456,13 +534,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({
                     name: nameInput.value,
                     rating: selectedRating,
-                    text: textInput.value
+                    text: textInput.value,
+                    website: document.getElementById('review-website')?.value || ''
                 })
             });
             const result = await res.json();
             if (result.success) {
+                // Сохраняем имя и ID отзыва в localStorage, чтобы после перезагрузки
+                // можно было точно сопоставить его с одобренной записью
+                saveReviewSubmitted(nameInput.value, result.id);
                 reviewForm.style.display = 'none';
                 if (reviewSuccess) reviewSuccess.style.display = 'block';
+            } else {
+                alert(result.message || 'Ошибка при отправке отзыва');
             }
         });
     }
@@ -506,3 +590,48 @@ if (navToggle && navMenu) {
         navMenu.classList.toggle('active');
     });
 }
+
+// ===== СМЕНА ФОНА В HERO (КАРТИНКА/ВИДЕО) =====
+document.addEventListener('DOMContentLoaded', function() {
+    const heroBg = document.querySelector('.hero-bg');
+    const heroVideo = document.querySelector('.hero-video');
+    if (!heroBg || !heroVideo) return;
+
+    let isImageVisible = true; // сначала видна картинка
+    let timeoutId;
+
+    function switchToVideo() {
+        if (!isImageVisible) return; // уже видео
+        heroBg.style.opacity = '0';
+        heroVideo.style.opacity = '1';
+        heroVideo.play().catch(e => console.log('Автовоспроизведение заблокировано:', e));
+        isImageVisible = false;
+        scheduleNext(); // планируем возврат к картинке через 10 секунд
+    }
+
+    function switchToImage() {
+        if (isImageVisible) return; // уже картинка
+        heroBg.style.opacity = '1';
+        heroVideo.style.opacity = '0';
+        heroVideo.pause();
+        heroVideo.currentTime = 0; // сбрасываем видео в начало
+        isImageVisible = true;
+        scheduleNext(); // планируем следующее видео через 2 секунды
+    }
+
+    function scheduleNext() {
+        clearTimeout(timeoutId);
+        const delay = isImageVisible ? 5000 : 15000; // 5 сек картинка, 15 сек видео
+        timeoutId = setTimeout(isImageVisible ? switchToVideo : switchToImage, delay);
+    }
+
+    // Стартуем цикл (первая смена через 5 секунд)
+    scheduleNext();
+
+    // Если видео не может загрузиться, продолжаем показывать картинку
+    heroVideo.addEventListener('error', () => {
+        clearTimeout(timeoutId);
+        heroBg.style.opacity = '1';
+        heroVideo.style.opacity = '0';
+    });
+});

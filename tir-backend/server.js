@@ -15,11 +15,33 @@ const multer = require('multer');
 
 const app = express();
 
+// Мягкое предупреждение: на проде ОБЯЗАТЕЛЬНО переопределить эти значения в .env
+if (ADMIN_USERNAME === 'admin' || ADMIN_PASSWORD === 'password' || JWT_SECRET === 'super-secret-key-change-me') {
+    console.warn(
+        '[SECURITY WARNING] Используются дефолтные ADMIN_USERNAME/ADMIN_PASSWORD/JWT_SECRET. ' +
+        'Перед выкладкой на прод задайте безопасные значения в .env.'
+    );
+}
+
 // --- ЗАЩИТА ОТ ПЕРЕБОРА ---
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 10,
     message: { success: false, message: "Слишком много попыток входа, попробуйте через 15 минут." }
+});
+
+// Не более 3 бронирований с одного IP в час
+const bookingLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 3,
+    message: { success: false, message: 'Вы уже отправили несколько заявок. Попробуйте через час или позвоните нам.' }
+});
+
+// Не более 1 отзыва с одного IP в сутки
+const reviewLimiter = rateLimit({
+    windowMs: 24 * 60 * 60 * 1000,
+    max: 1,
+    message: { success: false, message: 'Вы уже оставили отзыв сегодня. Попробуйте завтра.' }
 });
 
 app.use(express.json());
@@ -131,8 +153,13 @@ app.get('/api/bookings', checkToken, (req, res) => {
     });
 });
 
-app.post('/api/book', (req, res) => {
-    const { name, phone, datetime } = req.body;
+app.post('/api/book', bookingLimiter, (req, res) => {
+    const { name, phone, datetime, website } = req.body;
+
+    // Honeypot: боты заполняют скрытые поля, люди — нет
+    if (website) {
+        return res.json({ success: true }); // тихо игнорируем, не сообщаем боту об ошибке
+    }
 
     // Валидация полей
     if (!name || !phone || !datetime) {
@@ -140,6 +167,13 @@ app.post('/api/book', (req, res) => {
     }
     if (name.trim().length < 2) {
         return res.status(400).json({ success: false, message: 'Укажите корректное имя' });
+    }
+
+    // Валидация телефона: только российские номера (+7 или 8, 11 цифр)
+    const phoneDigits = phone.replace(/\D/g, '');
+    const isRussianPhone = phoneDigits.length === 11 && (phoneDigits[0] === '7' || phoneDigits[0] === '8');
+    if (!isRussianPhone) {
+        return res.status(400).json({ success: false, message: 'Укажите российский номер телефона (+7 или 8)' });
     }
 
     // Проверка, что datetime не в прошлом
@@ -399,8 +433,12 @@ app.get('/api/reviews', (req, res) => {
     });
 });
 
-app.post('/api/reviews', (req, res) => {
-    const { name, rating, text } = req.body;
+app.post('/api/reviews', reviewLimiter, (req, res) => {
+    const { name, rating, text, website } = req.body;
+
+    // Honeypot
+    if (website) return res.json({ success: true });
+
     if (!name || !rating || !text) {
         return res.status(400).json({ success: false, message: 'Заполните все поля' });
     }
@@ -413,7 +451,8 @@ app.post('/api/reviews', (req, res) => {
         [name.slice(0, 100), parseInt(rating), text.slice(0, 1000), date],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true });
+            // Отдаём ID созданного отзыва, чтобы фронт мог отслеживать именно его
+            res.json({ success: true, id: this.lastID });
         }
     );
 });

@@ -6,7 +6,7 @@
     <title>Тир Меткий Выстрел</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="/img/favicon.ico" type="image/x-icon">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
@@ -31,21 +31,30 @@
                     <li><a href="#contacts" class="nav-link">Контакты</a></li>
                     <li><a href="gallery.html" class="nav-link">Галерея</a></li>
                     <li><a href="/admin-login" class="nav-link">Вход</a></li>
+                    <li class="mobile-phone-item"><a href="tel:+74951234567" class="nav-link">📞 +7 (495) 123-45-67
                 </ul>
             </nav>
-            <a href="#booking" class="btn btn-primary">Записаться</a>
+            <div class="header-actions">
+                <a href="#booking" class="btn btn-primary">Записаться</a>
+                <a href="tel:+74951234567" class="header-phone">📞 +7 (495) 123-45-67</a>
+            </div>
         </div>
     </header>
 
     <!-- ==================== ОБНОВЛЕННАЯ HERO СЕКЦИЯ ==================== -->
     <section id="hero" class="hero">
-    <div class="container">
-        <h1 class="hero-title">Тир Меткий Выстрел</h1>
-        <p class="hero-subtitle">Попади в цель с первого выстрела!</p>
-        <a href="#booking" class="btn btn-primary mobile-hero-btn">Записаться</a>
-    </div>
-</section>
-    <!-- ==================== КОНЕЦ HERO СЕКЦИИ ==================== -->
+        <div class="hero-bg"></div>
+        <video class="hero-video" muted loop playsinline>
+        <source src="/img/Пуля.mp4" type="video/mp4">
+                Ваш браузер не поддерживает видео.
+        </video>
+        <div class="hero-overlay"></div>
+        <div class="container hero-content">
+            <h1 class="hero-title">Тир Меткий Выстрел</h1>
+            <p class="hero-subtitle">Попади в цель с первого выстрела!</p>
+            <a href="#booking" class="btn btn-primary mobile-hero-btn">Записаться</a>
+        </div>
+    </section>
 
     <div id="scroll-top" class="scroll-top">↑</div>
 
@@ -55,33 +64,61 @@
             <div id="news-list"></div>
         </div>
     </section>
+    <div class="section-divider"><span class="section-divider-icon"></span></div>
 
     <section id="about" class="section">
         <div class="container">
             <h2 class="section-title">О нас</h2>
-            <p class="section-text">Добро пожаловать в Тир Меткий Выстрел — место, где вы можете научиться стрелять, отточить свои навыки или просто провести время с адреналином. Мы предлагаем безопасную среду, сертифицированных инструкторов и широкий выбор оружия.</p>
+            <div class="about-box">
+                <p class="section-text">Добро пожаловать в Тир Меткий Выстрел — место, где вы можете научиться стрелять, отточить свои навыки или просто провести время с адреналином. Мы предлагаем безопасную среду, сертифицированных инструкторов и широкий выбор оружия.</p>
+            </div>
         </div>
     </section>
+    <div class="section-divider"><span class="section-divider-icon"></span></div>
 
     <section id="services" class="section">
         <div class="container">
             <h2 class="section-title">Услуги</h2>
             <div class="services-grid">
                 <div class="service-card">
+                    <div class="service-icon">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
+                            <circle cx="12" cy="12" r="6" stroke="currentColor" stroke-width="1.5"/>
+                            <circle cx="12" cy="12" r="2" fill="currentColor"/>
+                            <line x1="12" y1="2" x2="12" y2="5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <line x1="2" y1="12" x2="5" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <line x1="19" y1="12" x2="22" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </div>
                     <h3 class="card-title">Базовая подготовка</h3>
                     <p class="card-text">Индивидуальное обучение с профессиональным инструктором. Теория и практика безопасного обращения с оружием.</p>
                 </div>
                 <div class="service-card">
+                    <div class="service-icon">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 17L7 7L12 14L15 10L19 17H3Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                            <path d="M20 7C20 8.10457 19.1046 9 18 9C16.8954 9 16 8.10457 16 7C16 5.89543 16.8954 5 18 5C19.1046 5 20 5.89543 20 7Z" stroke="currentColor" stroke-width="1.5"/>
+                            <path d="M3 21H21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </div>
                     <h3 class="card-title">Спортивная стрельба</h3>
                     <p class="card-text">Тренировки для опытных стрелков. Подготовка к соревнованиям, отработка техники, улучшение результатов.</p>
                 </div>
                 <div class="service-card">
+                    <div class="service-icon">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
                     <h3 class="card-title">VIP-программы</h3>
                     <p class="card-text">Эксклюзивные программы стрельбы. Индивидуальный подход, премиальное оружие, особые условия.</p>
                 </div>
             </div>
         </div>
     </section>
+    <div class="section-divider"><span class="section-divider-icon"></span></div>
 
     <section id="arsenal" class="section">
         <div class="container">
@@ -115,7 +152,7 @@
                     </div>
                 </article>
                 <article class="weapon-item">
-                    <div class="weapon-image"><img src="/img/cz_p_9x19.jpeg" alt="Пистолет CZ P-09"></div>
+                    <div class="weapon-image"><img src="/img\czp9x19.jpeg" alt="Пистолет CZ P-09"></div>
                     <div class="weapon-description">
                         <p>Пистолет CZ P-09</p>
                         <p>Калибр: 9x19mm Parabellum</p>
@@ -123,29 +160,24 @@
                         <p>Стоимость выстрела: 65₽</p>
                     </div>
                 </article>
-                <article class="weapon-item">
-                    <div class="weapon-image"><img src="/img/hk_usp.jpeg" alt="Пистолет H&K USP"></div>
-                    <div class="weapon-description">
-                        <p>Пистолет H&K USP</p>
-                        <p>Калибр: .45 ACP</p>
-                        <p>Страна: Германия</p>
-                        <p>Стоимость выстрела: 70₽</p>
-                    </div>
-                </article>
             </div>
         </div>
     </section>
+    <div class="section-divider"><span class="section-divider-icon"></span></div>
 
     <section id="pricing" class="section">
         <div class="container">
             <h2 class="section-title">Цены</h2>
-            <ul class="pricing-list">
-                <li class="pricing-item">Пробный выстрел (20 патронов + инструктор) — <span>1500 руб.</span></li>
-                <li class="pricing-item">Час аренды дорожки — <span>2000 руб.</span></li>
-                <li class="pricing-item">Обучение (5 занятий) — <span>10 000 руб.</span></li>
-            </ul>
+            <div class="pricing-box">
+                <ul class="pricing-list">
+                    <li class="pricing-item">Пробный выстрел (20 патронов + инструктор) — <span>1500 руб.</span></li>
+                    <li class="pricing-item">Час аренды дорожки — <span>2000 руб.</span></li>
+                    <li class="pricing-item">Обучение (5 занятий) — <span>10 000 руб.</span></li>
+                </ul>
+            </div>
         </div>
     </section>
+    <div class="section-divider"><span class="section-divider-icon"></span></div>
 
     <section id="reviews" class="section">
         <div class="container">
@@ -164,14 +196,28 @@
                     </div>
                     <input type="hidden" id="review-rating" value="0">
                     <textarea id="review-text" class="input" placeholder="Расскажите о вашем визите..." required maxlength="1000" rows="4"></textarea>
+                    <!-- Honeypot: скрыто от людей, боты заполняют автоматически -->
+                    <input type="text" id="review-website" name="website" autocomplete="off" tabindex="-1" style="position:absolute;left:-9999px;opacity:0;height:0;" aria-hidden="true">
                     <button type="submit" class="btn btn-primary submit-btn">Отправить отзыв</button>
                 </form>
                 <div id="review-success" style="display:none;" class="review-success">
-                    <p>✅ Спасибо за отзыв! После проверки он появится на сайте.</p>
+                    <!-- Состояние: ожидает проверки -->
+                    <div id="review-pending-msg">
+                        <p class="review-success-icon">🕐</p>
+                        <p class="review-success-title">Отзыв отправлен!</p>
+                        <p class="review-success-sub">Он появится на сайте после проверки администратором.</p>
+                    </div>
+                    <!-- Состояние: опубликован -->
+                    <div id="review-approved-msg" style="display:none;">
+                        <p class="review-success-icon">✅</p>
+                        <p class="review-success-title">Ваш отзыв опубликован!</p>
+                        <p class="review-success-sub">Спасибо, что поделились впечатлениями.</p>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
+    <div class="section-divider"><span class="section-divider-icon"></span></div>
 
     <section id="contacts" class="section" itemscope itemtype="http://schema.org/Organization">
         <div class="container">
@@ -187,6 +233,7 @@
             </div>
         </div>
     </section>
+    <div class="section-divider"><span class="section-divider-icon"></span></div>
 
     <section id="booking" class="section">
         <div class="container">
@@ -197,6 +244,8 @@
                 <input type="text" placeholder="Имя" class="input" id="name" required>
                 <input type="tel" id="phone" class="input" placeholder="+7 (___) ___-__-__" maxlength="18" required>
                 <input type="date" class="input" id="date" required>
+                <!-- Honeypot: скрыто от людей, боты заполняют автоматически -->
+                <input type="text" id="website" name="website" autocomplete="off" tabindex="-1" style="position:absolute;left:-9999px;opacity:0;height:0;" aria-hidden="true">
                 <select id="datetime" class="input" required>
                     <option value="">Выберите время</option>
                 </select>
