@@ -12,7 +12,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     loadBookings();
     startPolling();
+
+    // Устанавливаем высоту левой колонки после загрузки
+    setTimeout(setAddBookingHeight, 100);
+    window.addEventListener('resize', setAddBookingHeight);
 });
+
+// [!] Функция синхронизации высоты левой колонки с календарём
+function setAddBookingHeight() {
+    const calendarCol = document.querySelector('.bookings-calendar-col');
+    const addCol = document.querySelector('.bookings-add-col');
+    if (!calendarCol || !addCol) return;
+
+    // На мобильных (ширина < 768px) сбрасываем принудительную высоту
+    if (window.innerWidth < 768) {
+        addCol.style.height = '';
+        addCol.style.overflowY = '';
+        return;
+    }
+
+    const calHeight = calendarCol.offsetHeight;
+    addCol.style.height = calHeight + 'px';
+    addCol.style.overflowY = 'auto'; // если контент не поместится
+}
 
 // ================= АВТОРИЗАЦИЯ =================
 
@@ -104,7 +126,6 @@ function showError(message) {
 function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
     if (!container) {
-        // Если контейнера нет, создадим временный
         const newContainer = document.createElement('div');
         newContainer.id = 'toast-container';
         newContainer.className = 'toast-container';
@@ -198,12 +219,17 @@ function renderCalendar() {
         calMonth--;
         if (calMonth < 0) { calMonth = 11; calYear--; }
         renderCalendar();
+        setAddBookingHeight(); // синхронизация после переключения месяца
     };
     document.getElementById('cal-next').onclick = () => {
         calMonth++;
         if (calMonth > 11) { calMonth = 0; calYear++; }
         renderCalendar();
+        setAddBookingHeight(); // синхронизация после переключения месяца
     };
+
+    // Синхронизация после полной отрисовки
+    setTimeout(setAddBookingHeight, 0);
 }
 
 function renderDayBookings(dateStr) {
@@ -231,13 +257,11 @@ function renderDayBookings(dateStr) {
         const item = document.createElement('div');
         item.className = 'booking-item';
 
-        // Подсветка прошедших броней
         const bookingDateTime = new Date(b.datetime);
         if (bookingDateTime < new Date()) {
             item.classList.add('booking-item--past');
         }
 
-        // Безопасное создание элементов (защита от XSS)
         const timeSpan = document.createElement('span');
         timeSpan.className = 'booking-time';
         timeSpan.textContent = time;
@@ -299,7 +323,6 @@ function initManualBooking() {
             const slots = await res.json();
             let availableSlots = slots.map(s => s.datetime);
 
-            // Фильтруем прошедшие слоты для сегодняшней даты
             if (date === today) {
                 const now = new Date();
                 availableSlots = availableSlots.filter(slot => {
@@ -417,7 +440,6 @@ function initForms() {
             ? `✅ Выбрано файлов: ${files.length}`
             : '📎 Прикрепить изображения (можно несколько)';
 
-        // Удаляем превью новых файлов (не трогаем существующие)
         document.querySelectorAll('#images-preview .img-preview-item--new').forEach(el => el.remove());
 
         for (const file of files) {
@@ -434,7 +456,6 @@ function initForms() {
 
     document.getElementById('news-form').addEventListener('submit', submitNews);
 
-    // Инициализация ручного добавления брони
     initManualBooking();
 }
 
@@ -570,12 +591,10 @@ async function loadNews() {
                 submitBtn.dataset.editId = item.id;
                 delete submitBtn.dataset.existingImage;
 
-                // Очищаем превью и показываем существующие изображения
                 const preview = document.getElementById('images-preview');
                 preview.innerHTML = '';
                 images.forEach(path => addExistingImagePreview(path));
 
-                // Сбрасываем файловый инпут
                 const fileInput = document.getElementById('news-image');
                 fileInput.value = '';
                 document.getElementById('file-label-text').textContent = '📎 Прикрепить изображения (можно несколько)';
@@ -612,7 +631,6 @@ function switchTab(tabId) {
     document.getElementById(tabId).classList.add('active');
 }
 
-// Добавляет превью существующего (сохранённого) изображения с кнопкой удаления
 function addExistingImagePreview(path) {
     const preview = document.getElementById('images-preview');
     const item = document.createElement('div');
@@ -634,7 +652,6 @@ function showNewsPreview() {
     const modal = document.getElementById('news-preview-modal');
     const previewImg = document.getElementById('preview-img');
 
-    // Берём первое доступное изображение: из новых файлов или из существующих
     const newFile = document.getElementById('news-image').files[0];
     const existingItem = document.querySelector('#images-preview .img-preview-item--existing');
 
@@ -682,7 +699,6 @@ async function submitNews(e) {
     formData.append('title', title);
     formData.append('content', quill.root.innerHTML);
 
-    // Собираем пути существующих изображений, которые не были удалены
     if (isEdit) {
         const kept = [...document.querySelectorAll('#images-preview .img-preview-item--existing')]
             .map(el => el.dataset.path)
@@ -690,7 +706,6 @@ async function submitNews(e) {
         formData.append('keepImages', JSON.stringify(kept));
     }
 
-    // Добавляем новые файлы
     const files = document.getElementById('news-image').files;
     for (const file of files) {
         formData.append('images', file);
@@ -764,7 +779,6 @@ function renderAdminReviews(containerId, reviews, isApproved) {
         const card = document.createElement('div');
         card.className = 'admin-review-card';
 
-        // Шаблон с безопасными полями (звёзды — только ★/☆, id — число)
         card.innerHTML = `
             <div class="admin-review-header">
                 <span class="admin-review-name"></span>
@@ -778,7 +792,6 @@ function renderAdminReviews(containerId, reviews, isApproved) {
             </div>
         `;
 
-        // Безопасно вставляем пользовательские данные через textContent
         card.querySelector('.admin-review-name').textContent = r.name;
         card.querySelector('.admin-review-date').textContent = r.date;
         card.querySelector('.admin-review-text').textContent = r.text;

@@ -50,19 +50,21 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
             body: JSON.stringify({ username, password, remember })
         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP ошибка: ${response.status}`);
+        let result = {};
+        try {
+            result = await response.json();
+        } catch {
+            // если сервер не вернул JSON, оставляем result пустым
         }
 
-        const result = await response.json();
-
-        if (result.success) {
+        if (response.ok && result.success) {
             localStorage.setItem('adminToken', result.token);
             window.location.assign('/admin');
         } else {
-            await showMessage('Неверный логин или пароль');
+            // Показываем сообщение сервера, если оно есть, иначе дефолтное
+            await showMessage(result.message || 'Неверный логин или пароль');
         }
-    } catch (error) {
-        await showMessage('Ошибка при входе: ' + error.message);
+    } catch {
+        await showMessage('Ошибка при входе. Проверьте соединение и попробуйте ещё раз.');
     }
 });
