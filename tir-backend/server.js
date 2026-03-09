@@ -2,9 +2,18 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
+const helmet = require('helmet');
 require('dotenv').config();
+
+// Фиксируем часовой пояс Москвы (UTC+3).
+// Это влияет на new Date() и сравнение слотов на сервере.
+// Клиент присылает datetime в формате ISO (YYYY-MM-DDTHH:MM) без зоны,
+// сервер интерпретирует его как локальное время — поэтому TZ должен
+// совпадать с реальным местоположением тира.
+process.env.TZ = 'Europe/Moscow';
 
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'password';
@@ -14,14 +23,6 @@ const sqlite3 = require('sqlite3').verbose();
 const multer = require('multer');
 
 const app = express();
-
-// Мягкое предупреждение: на проде ОБЯЗАТЕЛЬНО переопределить эти значения в .env
-if (ADMIN_USERNAME === 'admin' || ADMIN_PASSWORD === 'password' || JWT_SECRET === 'super-secret-key-change-me') {
-    console.warn(
-        '[SECURITY WARNING] Используются дефолтные ADMIN_USERNAME/ADMIN_PASSWORD/JWT_SECRET. ' +
-        'Перед выкладкой на прод задайте безопасные значения в .env.'
-    );
-}
 
 // --- ЗАЩИТА ОТ ПЕРЕБОРА ---
 const loginLimiter = rateLimit({
@@ -44,6 +45,20 @@ const reviewLimiter = rateLimit({
     message: { success: false, message: 'Вы уже оставили отзыв сегодня. Попробуйте завтра.' }
 });
 
+// Не более 5 попыток входа в кабинет с одного IP за 15 минут (защита от брутфорса пина)
+const pinLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    message: { success: false, message: 'Слишком много попыток. Попробуйте через 15 минут.' }
+});
+
+app.set('trust proxy', 1); // Доверяем X-Forwarded-For от nginx для корректного rate limit
+app.use(helmet({
+    // Разрешаем загрузку шрифтов и скриптов с внешних CDN (Quill, Google Fonts)
+    contentSecurityPolicy: false,
+    // crossOriginEmbedderPolicy ломает Yandex Maps iframe
+    crossOriginEmbedderPolicy: false
+}));
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -54,14 +69,30 @@ if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-const db = new sqlite3.Database('bookings.db', (err) => {
+const db = new sqlite3.Database(path.join(__dirname, 'bookings.db'), (err) => {
     if (err) console.error('Ошибка БД:', err);
+});
+
+// WAL режим — снижает блокировки при одновременных запросах
+// Запускается отдельно, вне транзакции
+db.run('PRAGMA journal_mode=WAL', (err) => {
+    if (err) console.error('WAL mode error:', err.message);
+});
+
+db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS bookings (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, phone TEXT, datetime TEXT UNIQUE)`);
     db.run(`CREATE TABLE IF NOT EXISTS blocked_dates (date TEXT PRIMARY KEY)`);
     db.run(`CREATE TABLE IF NOT EXISTS blocked_ranges (id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, start_time TEXT, end_time TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS news (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, content TEXT, image TEXT, date TEXT)`);
     db.run(`CREATE TABLE IF NOT EXISTS reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, rating INTEGER, text TEXT, date TEXT, approved INTEGER DEFAULT 0)`);
     db.run(`CREATE TABLE IF NOT EXISTS news_images (id INTEGER PRIMARY KEY AUTOINCREMENT, news_id INTEGER NOT NULL, image_path TEXT NOT NULL, sort_order INTEGER DEFAULT 0)`);
+    db.run(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, phone TEXT UNIQUE NOT NULL, pin_hash TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP)`);
+    // Накопительная статистика — не удаляется при автоочистке броней
+    db.run(`CREATE TABLE IF NOT EXISTS stats_daily (date TEXT PRIMARY KEY, count INTEGER DEFAULT 0)`);
+    db.run(`CREATE TABLE IF NOT EXISTS stats_hourly (hour INTEGER PRIMARY KEY, count INTEGER DEFAULT 0)`);
+    db.run(`CREATE TABLE IF NOT EXISTS stats_weekday (weekday INTEGER PRIMARY KEY, count INTEGER DEFAULT 0)`);
+    // Миграция: заполняем статистику из существующих броней если таблицы только что созданы
+    db.run('SELECT 1', () => migrateStatsFromBookings());
 });
 
 // ==================== MULTER (ЗАЩИЩЕННЫЙ) ====================
@@ -82,37 +113,129 @@ const upload = multer({
     }
 }).array('images', 10);
 
+// Отдельный инстанс для одиночной загрузки (inline-картинки в редакторе)
+const uploadSingle = multer({
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        const filetypes = /jpeg|jpg|png|webp/;
+        if (filetypes.test(file.mimetype) && filetypes.test(path.extname(file.originalname).toLowerCase())) {
+            return cb(null, true);
+        }
+        cb(new Error("Только изображения (jpg, png, webp)!"));
+    }
+}).single('image');
+
 // ==================== МИДЛВАР JWT ====================
+
+// Хелпер: хэш пина с солью (phone как соль — уникально для каждого пользователя)
+function hashPin(phone, pin) {
+    return crypto.createHash('sha256').update(phone + ':' + pin).digest('hex');
+}
+
+// Мидлвар для админа
 const checkToken = (req, res, next) => {
     const token = req.headers['x-admin-token'];
     if (!token) return res.status(401).json({ error: 'Нужна авторизация' });
 
     jwt.verify(token, JWT_SECRET, (err, decoded) => {
         if (err) return res.status(403).json({ error: 'Сессия истекла' });
+        if (decoded.role !== 'admin') return res.status(403).json({ error: 'Нет доступа' });
         req.admin = decoded;
+        next();
+    });
+};
+
+// Мидлвар для пользователя личного кабинета
+const checkUserToken = (req, res, next) => {
+    const token = req.headers['x-user-token'];
+    if (!token) return res.status(401).json({ error: 'Нужна авторизация' });
+
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err) return res.status(403).json({ error: 'Сессия истекла' });
+        if (decoded.role !== 'user') return res.status(403).json({ error: 'Нет доступа' });
+        req.user = decoded;
         next();
     });
 };
 
 // ==================== СТРАНИЦЫ ====================
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
-app.get('/admin-login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin-login.html')));
+app.get('/admin-login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+app.get('/cabinet', (req, res) => res.sendFile(path.join(__dirname, 'public', 'cabinet.html')));
 
 // ==================== АВТОРИЗАЦИЯ ====================
+
+// Проверка: есть ли у номера пин (для переключения режима на фронте)
+app.post('/api/check-phone', pinLimiter, (req, res) => {
+    const phone = (req.body.phone || '').replace(/\D/g, '');
+    if (phone.length !== 11) return res.status(400).json({ success: false, message: 'Неверный номер' });
+
+    db.get('SELECT id FROM users WHERE phone = ?', [phone], (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ exists: !!user });
+    });
+});
+
+// Регистрация пина (первый вход)
+app.post('/api/user/register', pinLimiter, (req, res) => {
+    const phone = (req.body.phone || '').replace(/\D/g, '');
+    const pin = String(req.body.pin || '').trim();
+
+    if (phone.length !== 11) return res.status(400).json({ success: false, message: 'Неверный номер телефона' });
+    if (!/^\d{4}$/.test(pin)) return res.status(400).json({ success: false, message: 'Пин должен быть 4 цифры' });
+
+    // Проверяем что этот телефон вообще есть в бронях
+    db.get('SELECT id FROM bookings WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone," ",""),"-",""),"(",""),")",""),"+","") = ?',
+        [phone],
+        (err, booking) => {
+            if (!booking) return res.status(403).json({ success: false, message: 'Номер не найден в системе. Сначала оформите бронь.' });
+
+            const pin_hash = hashPin(phone, pin);
+            db.run('INSERT INTO users (phone, pin_hash) VALUES (?, ?)', [phone, pin_hash], function(err) {
+                if (err) {
+                    if (err.message.includes('UNIQUE')) return res.status(409).json({ success: false, message: 'Этот номер уже зарегистрирован' });
+                    return res.status(500).json({ error: err.message });
+                }
+                const token = jwt.sign({ role: 'user', phone }, JWT_SECRET, { expiresIn: '7d' });
+                res.json({ success: true, token });
+            });
+        }
+    );
+});
+
+// Вход пользователя по номеру + пину
+app.post('/api/user/login', pinLimiter, (req, res) => {
+    const phone = (req.body.phone || '').replace(/\D/g, '');
+    const pin = String(req.body.pin || '').trim();
+
+    if (phone.length !== 11) return res.status(400).json({ success: false, message: 'Неверный номер телефона' });
+    if (!/^\d{4}$/.test(pin)) return res.status(400).json({ success: false, message: 'Введите 4-значный пин' });
+
+    const pin_hash = hashPin(phone, pin);
+    db.get('SELECT id FROM users WHERE phone = ? AND pin_hash = ?', [phone, pin_hash], (err, user) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!user) return res.status(401).json({ success: false, message: 'Неверный номер или пин' });
+
+        const token = jwt.sign({ role: 'user', phone }, JWT_SECRET, { expiresIn: '7d' });
+        res.json({ success: true, token });
+    });
+});
+
+// Вход администратора
 app.post('/api/admin-login', loginLimiter, (req, res) => {
     const { username, password, remember } = req.body;
     if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-        // Обычный краткосрочный токен для работы (24 часа)
-        const token = jwt.sign({ user: username }, JWT_SECRET, { expiresIn: '24h' });
+        const token = jwt.sign({ role: 'admin', user: username }, JWT_SECRET, { expiresIn: '24h' });
 
-        // Если "Запомнить меня" — ставим httpOnly cookie на 30 дней
         if (remember) {
-            const rememberToken = jwt.sign({ user: username, type: 'remember' }, JWT_SECRET, { expiresIn: '30d' });
+            const rememberToken = jwt.sign({ role: 'admin', user: username, type: 'remember' }, JWT_SECRET, { expiresIn: '30d' });
             res.cookie('adminRemember', rememberToken, {
-                httpOnly: true,   // JS не может прочитать — защита от XSS
-                sameSite: 'strict', // защита от CSRF
-                maxAge: 30 * 24 * 60 * 60 * 1000, // 30 дней в мс
-                path: '/api'
+                httpOnly: true,
+                sameSite: 'lax',
+                maxAge: 30 * 24 * 60 * 60 * 1000,
+                path: '/'
             });
         }
 
@@ -129,17 +252,17 @@ app.post('/api/refresh-token', (req, res) => {
 
     jwt.verify(rememberToken, JWT_SECRET, (err, decoded) => {
         if (err || decoded.type !== 'remember') {
-            res.clearCookie('adminRemember', { path: '/api' });
+            res.clearCookie('adminRemember', { path: '/' });
             return res.status(401).json({ success: false });
         }
-        const token = jwt.sign({ user: decoded.user }, JWT_SECRET, { expiresIn: '24h' });
+        const token = jwt.sign({ role: 'admin', user: decoded.user }, JWT_SECRET, { expiresIn: '24h' });
         res.json({ success: true, token });
     });
 });
 
 // Выход — удаляем cookie
 app.post('/api/admin-logout', (req, res) => {
-    res.clearCookie('adminRemember', { path: '/api' });
+    res.clearCookie('adminRemember', { path: '/' });
     res.json({ success: true });
 });
 
@@ -212,6 +335,7 @@ app.post('/api/book', bookingLimiter, (req, res) => {
                     }
                     return res.status(500).json({ success: false, message: 'Ошибка базы данных' });
                 }
+                incrementStats(datetime);
                 res.json({ success: true });
             });
         });
@@ -219,7 +343,11 @@ app.post('/api/book', bookingLimiter, (req, res) => {
 });
 
 app.delete('/api/bookings/:id', checkToken, (req, res) => {
-    db.run('DELETE FROM bookings WHERE id = ?', [req.params.id], () => res.json({ success: true }));
+    db.run('DELETE FROM bookings WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ success: false, message: err.message });
+        if (this.changes === 0) return res.status(404).json({ success: false, message: 'Бронь не найдена' });
+        res.json({ success: true });
+    });
 });
 
 // ==================== СЛОТЫ ====================
@@ -266,7 +394,10 @@ app.post('/api/block-date', checkToken, (req, res) => {
 });
 
 app.delete('/api/blocked-dates/:date', checkToken, (req, res) => {
-    db.run('DELETE FROM blocked_dates WHERE date = ?', [req.params.date], () => res.json({ success: true }));
+    db.run('DELETE FROM blocked_dates WHERE date = ?', [req.params.date], function(err) {
+        if (err) return res.status(500).json({ success: false, message: err.message });
+        res.json({ success: true });
+    });
 });
 
 // ==================== БЛОКИРОВКА ВРЕМЕННЫХ ДИАПАЗОНОВ ====================
@@ -296,7 +427,20 @@ app.post('/api/block-range', checkToken, (req, res) => {
 });
 
 app.delete('/api/blocked-ranges/:id', checkToken, (req, res) => {
-    db.run('DELETE FROM blocked_ranges WHERE id = ?', [req.params.id], () => res.json({ success: true }));
+    db.run('DELETE FROM blocked_ranges WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ success: false, message: err.message });
+        res.json({ success: true });
+    });
+});
+
+// ==================== ЗАГРУЗКА INLINE-ИЗОБРАЖЕНИЙ ====================
+// Используется редактором новостей для вставки картинок прямо в текст
+app.post('/api/upload-inline', checkToken, (req, res) => {
+    uploadSingle(req, res, (err) => {
+        if (err) return res.status(400).json({ success: false, message: err.message });
+        if (!req.file) return res.status(400).json({ success: false, message: 'Файл не получен' });
+        res.json({ success: true, url: `/uploads/${req.file.filename}` });
+    });
 });
 
 // ==================== НОВОСТИ ====================
@@ -418,9 +562,36 @@ app.put('/api/news/:id', checkToken, (req, res) => {
 });
 
 app.delete('/api/news/:id', checkToken, (req, res) => {
-    db.run('DELETE FROM news WHERE id = ?', [req.params.id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true });
+    const newsId = req.params.id;
+
+    // Получаем пути всех картинок новости перед удалением
+    db.all('SELECT image_path FROM news_images WHERE news_id = ?', [newsId], (err, imgRows) => {
+        db.get('SELECT image FROM news WHERE id = ?', [newsId], (err, newsRow) => {
+
+            db.run('DELETE FROM news WHERE id = ?', [newsId], function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                if (this.changes === 0) return res.status(404).json({ success: false, message: 'Новость не найдена' });
+
+                // Удаляем записи из news_images
+                db.run('DELETE FROM news_images WHERE news_id = ?', [newsId]);
+
+                // Собираем все пути и удаляем файлы с диска
+                const paths = (imgRows || []).map(r => r.image_path);
+                if (newsRow?.image && !paths.includes(newsRow.image)) paths.push(newsRow.image);
+
+                paths.forEach(imgPath => {
+                    if (!imgPath || imgPath.startsWith('http')) return;
+                    const fullPath = path.join(__dirname, 'public', imgPath);
+                    fs.unlink(fullPath, (err) => {
+                        if (err && err.code !== 'ENOENT') {
+                            console.error(`Не удалось удалить файл ${fullPath}:`, err.message);
+                        }
+                    });
+                });
+
+                res.json({ success: true });
+            });
+        });
     });
 });
 
@@ -451,7 +622,6 @@ app.post('/api/reviews', reviewLimiter, (req, res) => {
         [name.slice(0, 100), parseInt(rating), text.slice(0, 1000), date],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
-            // Отдаём ID созданного отзыва, чтобы фронт мог отслеживать именно его
             res.json({ success: true, id: this.lastID });
         }
     );
@@ -471,13 +641,177 @@ app.put('/api/admin/reviews/:id/approve', checkToken, (req, res) => {
 });
 
 app.delete('/api/admin/reviews/:id', checkToken, (req, res) => {
-    db.run('DELETE FROM reviews WHERE id = ?', [req.params.id], () => {
+    db.run('DELETE FROM reviews WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ success: false, message: err.message });
         res.json({ success: true });
     });
 });
 
+// ==================== ЛИЧНЫЙ КАБИНЕТ ====================
+
+// Мои брони (предстоящие и прошлые)
+app.get('/api/cabinet/bookings', checkUserToken, (req, res) => {
+    const phone = req.user.phone;
+    db.all(
+        `SELECT * FROM bookings WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone," ",""),"-",""),"(",""),")",""),"+","") = ? ORDER BY datetime DESC`,
+        [phone],
+        (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows);
+        }
+    );
+});
+
+// Отмена брони (только если до неё > 2 часов)
+app.delete('/api/cabinet/bookings/:id', checkUserToken, (req, res) => {
+    const phone = req.user.phone;
+    db.get('SELECT * FROM bookings WHERE id = ?', [req.params.id], (err, booking) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!booking) return res.status(404).json({ success: false, message: 'Бронь не найдена' });
+
+        // Проверяем что это бронь этого пользователя
+        const bookingPhone = booking.phone.replace(/\D/g, '');
+        if (bookingPhone !== phone) {
+            return res.status(403).json({ success: false, message: 'Нет доступа' });
+        }
+
+        // Проверяем что до брони > 2 часов
+        const bookingTime = new Date(booking.datetime);
+        const hoursUntil = (bookingTime - new Date()) / (1000 * 60 * 60);
+        if (hoursUntil < 2) {
+            return res.status(400).json({ success: false, message: 'Отменить можно не позднее чем за 2 часа до визита' });
+        }
+
+        db.run('DELETE FROM bookings WHERE id = ?', [req.params.id], (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true });
+        });
+    });
+});
+
+// Мои отзывы
+app.get('/api/cabinet/reviews', checkUserToken, (req, res) => {
+    const phone = req.user.phone;
+    // Ищем отзывы по имени — связываем через брони этого телефона
+    db.get(
+        `SELECT name FROM bookings WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone," ",""),"-",""),"(",""),")",""),"+","") = ? LIMIT 1`,
+        [phone],
+        (err, booking) => {
+            if (err || !booking) return res.json([]);
+            db.all('SELECT * FROM reviews WHERE name = ? ORDER BY date DESC', [booking.name], (err, rows) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json(rows);
+            });
+        }
+    );
+});
+
+// ==================== СТАТИСТИКА ====================
+app.get('/api/stats', checkToken, (req, res) => {
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    const weekStr = weekStart.toISOString().slice(0, 10);
+    const monthStr = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+
+    const stats = {};
+
+    // Всего броней из накопительной статистики
+    db.get('SELECT SUM(count) as cnt FROM stats_daily', (err, row) => {
+        stats.total = row?.cnt || 0;
+
+        // За эту неделю
+        db.get('SELECT SUM(count) as cnt FROM stats_daily WHERE date >= ?', [weekStr], (err, row) => {
+            stats.week = row?.cnt || 0;
+
+            // За этот месяц
+            db.get('SELECT SUM(count) as cnt FROM stats_daily WHERE date >= ?', [monthStr], (err, row) => {
+                stats.month = row?.cnt || 0;
+
+                // Отзывы
+                db.get('SELECT COUNT(*) as cnt, AVG(rating) as avg FROM reviews WHERE approved = 1', (err, row) => {
+                    stats.reviews = row?.cnt || 0;
+                    stats.rating = row?.avg ? Math.round(row.avg * 10) / 10 : null;
+
+                    db.get('SELECT COUNT(*) as cnt FROM reviews WHERE approved = 0', (err, row) => {
+                        stats.pending = row?.cnt || 0;
+
+                        // Популярные часы из накопительной таблицы
+                        db.all('SELECT hour, count as cnt FROM stats_hourly ORDER BY cnt DESC LIMIT 5', (err, rows) => {
+                            stats.popularHours = (rows || []).map(r => ({
+                                hour: String(r.hour).padStart(2, '0'),
+                                cnt: r.cnt
+                            }));
+
+                            // Дни недели из накопительной таблицы
+                            const dayNames = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+                            db.all('SELECT weekday, count as cnt FROM stats_weekday ORDER BY weekday', (err, rows) => {
+                                const map = {};
+                                (rows || []).forEach(r => map[r.weekday] = r.cnt);
+                                stats.weekdays = dayNames.map((name, i) => ({ name, cnt: map[i] || 0 }));
+                                res.json(stats);
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    });
+});
+
+// ==================== 404 ====================
+app.use((req, res) => {
+    // API-запросы получают JSON
+    if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: 'Не найдено' });
+    }
+    res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+});
+
+// ==================== ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ОШИБОК ====================
+// Перехватывает необработанные ошибки Express и логирует их с контекстом
+app.use((err, req, res, next) => {
+    console.error(`[${new Date().toISOString()}] Необработанная ошибка:`, {
+        method: req.method,
+        url: req.url,
+        error: err.message,
+        stack: err.stack
+    });
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Сервер запущен: http://localhost:${PORT}`));
+
+// ==================== НАКОПИТЕЛЬНАЯ СТАТИСТИКА ====================
+
+// Инкремент при новой брони
+function incrementStats(datetimeStr) {
+    const d = new Date(datetimeStr);
+    const date = datetimeStr.slice(0, 10);           // YYYY-MM-DD
+    const hour = d.getHours();                        // 0-23
+    const weekday = d.getDay();                       // 0=вс, 1=пн...
+
+    db.run(`INSERT INTO stats_daily (date, count) VALUES (?, 1)
+            ON CONFLICT(date) DO UPDATE SET count = count + 1`, [date]);
+    db.run(`INSERT INTO stats_hourly (hour, count) VALUES (?, 1)
+            ON CONFLICT(hour) DO UPDATE SET count = count + 1`, [hour]);
+    db.run(`INSERT INTO stats_weekday (weekday, count) VALUES (?, 1)
+            ON CONFLICT(weekday) DO UPDATE SET count = count + 1`, [weekday]);
+}
+
+// Миграция: заполняем статистику из существующих броней (запускается один раз при старте)
+function migrateStatsFromBookings() {
+    db.get('SELECT COUNT(*) as cnt FROM stats_daily', (err, row) => {
+        if (err || (row && row.cnt > 0)) return; // уже есть данные — пропускаем
+        db.all('SELECT datetime FROM bookings', (err, rows) => {
+            if (err || !rows.length) return;
+            console.log(`[stats] Миграция: обрабатываем ${rows.length} броней...`);
+            rows.forEach(r => incrementStats(r.datetime));
+            console.log('[stats] Миграция завершена');
+        });
+    });
+}
 
 // ==================== АВТОУДАЛЕНИЕ СТАРЫХ БРОНЕЙ ====================
 function cleanupOldBookings() {

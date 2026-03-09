@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    <!-- Quill Image Resize module -->
+    <script src="https://cdn.jsdelivr.net/npm/quill-image-resize-module@3.0.0/image-resize.min.js"></script>
 </head>
 <body>
 
@@ -21,7 +23,8 @@
     <button class="tab-btn" data-tab="blocked">Запрещённые дни</button>
     <button class="tab-btn" data-tab="news-add">Добавить новость</button>
     <button class="tab-btn" data-tab="news-list-tab">Опубликованные новости</button>
-    <button class="tab-btn" data-tab="reviews-tab">Отзывы</button>
+    <button class="tab-btn" data-tab="reviews-tab">Отзывы <span class="tab-badge" id="reviews-badge" style="display:none"></span></button>
+    <button class="tab-btn" data-tab="stats-tab">📊 Статистика</button>
 </div>
 
 <!-- БРОНИ -->
@@ -34,12 +37,21 @@
             <div class="admin-add-booking">
                 <h3 class="blocked-section-title">➕ Добавить бронь</h3>
                 <form id="admin-booking-form" class="admin-booking-form">
-                    <input type="text" id="admin-name" class="input" placeholder="Имя" required>
-                    <input type="tel" id="admin-phone" class="input" placeholder="Телефон" required>
-                    <input type="date" id="admin-date" class="input" required>
-                    <select id="admin-time" class="input" required>
-                        <option value="">Сначала выберите дату</option>
-                    </select>
+                    <div class="form-field">
+                        <input type="text" id="admin-name" class="input" placeholder="Имя клиента" required autocomplete="off">
+                    </div>
+                    <div class="form-field">
+                        <input type="tel" id="admin-phone" class="input" placeholder="+7 (___) ___-__-__" required autocomplete="off">
+                    </div>
+                    <div class="form-field">
+                        <input type="date" id="admin-date" class="input" required>
+                        <span class="form-hint">Дата визита</span>
+                    </div>
+                    <div class="form-field">
+                        <select id="admin-time" class="input" required>
+                            <option value="">Сначала выберите дату</option>
+                        </select>
+                    </div>
                     <button type="submit" class="btn btn-primary">Добавить</button>
                 </form>
             </div>
@@ -113,16 +125,24 @@
 
 <!-- ДОБАВИТЬ НОВОСТЬ -->
 <div id="news-add" class="tab-content">
-    <h2 class="tab-title">Добавить новость</h2>
+    <h2 class="tab-title">Добавить новость <span class="autosave-indicator" id="autosave-indicator"></span></h2>
     <div class="news-editor-wrap">
         <form id="news-form">
-            <input type="text" id="news-title" placeholder="Заголовок" required>
-            <div id="editor"></div>
+            <div class="form-field">
+                <input type="text" id="news-title" placeholder="Заголовок новости" required maxlength="200">
+                <span class="form-hint">От 3 до 200 символов</span>
+            </div>
+            <div class="form-field">
+                <div id="editor"></div>
+                <div class="editor-footer">
+                    <span class="form-hint">Текст новости (минимум 10 символов)</span>
+                    <span class="editor-char-counter" id="editor-char-counter">0 символов</span>
+                </div>
+            </div>
             <label class="file-label">
                 <span id="file-label-text">📎 Прикрепить изображения (можно несколько)</span>
                 <input type="file" id="news-image" accept="image/*" multiple>
             </label>
-            <!-- Превью изображений: существующие (при редактировании) + новые -->
             <div id="images-preview" class="images-preview-grid"></div>
             <div class="news-form-actions">
                 <button type="button" id="news-preview-btn" class="btn-preview">👁 Превью</button>
@@ -169,9 +189,56 @@
     </div>
 </div>
 
+<!-- СТАТИСТИКА -->
+<div id="stats-tab" class="tab-content">
+    <h2 class="tab-title">Статистика</h2>
+    <div class="stats-layout">
+        <!-- Левая колонка: карточки с цифрами -->
+        <div class="stats-left">
+            <div class="stats-grid" id="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-week">—</div>
+                    <div class="stat-label">Броней за эту неделю</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-month">—</div>
+                    <div class="stat-label">Броней за месяц</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-total">—</div>
+                    <div class="stat-label">Всего броней в базе</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-rating">—</div>
+                    <div class="stat-label">Средняя оценка отзывов</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-reviews">—</div>
+                    <div class="stat-label">Опубликованных отзывов</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-pending">—</div>
+                    <div class="stat-label">Отзывов на проверке</div>
+                </div>
+            </div>
+        </div>
+        <!-- Правая колонка: графики -->
+        <div class="stats-right">
+            <div class="stats-section">
+                <h3 class="blocked-section-title">🕐 Популярные часы записи</h3>
+                <div class="stats-hours" id="stats-hours"></div>
+            </div>
+            <div class="stats-section">
+                <h3 class="blocked-section-title">📅 Брони по дням недели</h3>
+                <div class="stats-weekdays" id="stats-weekdays"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- КОНТЕЙНЕР ДЛЯ TOAST-УВЕДОМЛЕНИЙ -->
 <div id="toast-container" class="toast-container"></div>
 
 <script src="admin.js"></script>
-</body>
+</html></body>
 </html>

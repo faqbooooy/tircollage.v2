@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initForms();
 
     loadBookings();
+    loadAdminReviews(); // сразу чтобы бейдж и title обновились при открытии
     startPolling();
 
     // Устанавливаем высоту левой колонки после загрузки
@@ -45,22 +46,46 @@ function authHeaders(extra = {}) {
     };
 }
 
+async function tryRefreshToken() {
+    try {
+        const res = await fetch('/api/refresh-token', { method: 'POST' });
+        if (!res.ok) return false;
+        const data = await res.json();
+        if (data.success && data.token) {
+            localStorage.setItem('adminToken', data.token);
+            return true;
+        }
+    } catch {}
+    return false;
+}
+
 async function checkAuth() {
     const token = localStorage.getItem('adminToken');
+
+    // Нет токена — пробуем обновить по cookie
     if (!token) {
-        window.location.href = '/admin-login';
-        return false;
+        const refreshed = await tryRefreshToken();
+        if (!refreshed) { window.location.href = '/login?tab=admin'; return false; }
     }
 
     try {
-        const res = await fetch('/api/check-auth', {
-            headers: authHeaders()
-        });
+        const res = await fetch('/api/check-auth', { headers: authHeaders() });
 
         if (!res.ok) {
-            localStorage.removeItem('adminToken');
-            window.location.href = '/admin-login';
-            return false;
+            // Токен истёк — пробуем обновить по cookie
+            const refreshed = await tryRefreshToken();
+            if (!refreshed) {
+                localStorage.removeItem('adminToken');
+                window.location.href = '/login?tab=admin';
+                return false;
+            }
+            // Проверяем снова с новым токеном
+            const res2 = await fetch('/api/check-auth', { headers: authHeaders() });
+            if (!res2.ok) {
+                localStorage.removeItem('adminToken');
+                window.location.href = '/login?tab=admin';
+                return false;
+            }
         }
     } catch {
         showError('Нет связи с сервером. Проверьте подключение.');
@@ -78,6 +103,8 @@ function startPolling() {
         if (bookingsTab && bookingsTab.classList.contains('active')) {
             loadBookings();
         }
+        // Всегда обновляем бейдж отзывов независимо от активной вкладки
+        loadAdminReviews();
     }, 30000);
 }
 
@@ -89,7 +116,8 @@ function initTabs() {
         blocked: () => { loadBlocked(); loadBlockedRanges(); },
         'news-add': () => {},
         'news-list-tab': loadNews,
-        'reviews-tab': loadAdminReviews
+        'reviews-tab': loadAdminReviews,
+        'stats-tab': loadStats
     };
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -108,9 +136,157 @@ function initTabs() {
 // ================= QUILL =================
 
 function initQuill() {
+    // Регистрируем модуль ресайза изображений если доступен
+    if (window.ImageResize) {
+        // suppress=true чтобы не было предупреждения "Overwriting modules/imageResize"
+        Quill.register('modules/imageResize', window.ImageResize.default || window.ImageResize, true);
+    }
+
     quill = new Quill('#editor', {
         theme: 'snow',
-        placeholder: 'Текст новости...'
+        placeholder: 'Текст новости...',
+        modules: {
+            toolbar: {
+                container: [
+                    [{ header: [2, 3, false] }],
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ color: [] }],
+                    [{ list: 'ordered' }, { list: 'bullet' }],
+                    [{ align: [] }],
+                    ['blockquote'],
+                    ['link', 'image'],
+                    ['clean']
+                ],
+                handlers: {
+                    image: quillImageHandler
+                }
+            },
+            ...(window.ImageResize ? {
+                imageResize: { displaySize: true }
+            } : {})
+        }
+    });
+
+    // ===== Счётчик символов =====
+    const counter = document.getElementById('editor-char-counter');
+    function updateCounter() {
+        const len = quill.getText().trim().length;
+        if (counter) {
+            counter.textContent = len.toLocaleString('ru') + ' символов';
+            counter.classList.toggle('editor-char-counter--warn', len > 4000);
+        }
+    }
+    quill.on('text-change', () => {
+        updateCounter();
+        scheduleAutosave();
+    });
+    updateCounter();
+
+    // ===== Автосохранение черновика =====
+    const DRAFT_KEY = 'news_draft';
+    let autosaveTimer = null;
+
+    function scheduleAutosave() {
+        clearTimeout(autosaveTimer);
+        autosaveTimer = setTimeout(saveDraft, 1500);
+    }
+
+    function saveDraft() {
+        const title = document.getElementById('news-title')?.value || '';
+        const content = quill.root.innerHTML;
+        const text = quill.getText().trim();
+        if (!title && !text) return; // не сохраняем пустое
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({
+            title,
+            content,
+            savedAt: new Date().toISOString()
+        }));
+        showAutosaveIndicator('Черновик сохранён');
+    }
+
+    function showAutosaveIndicator(msg) {
+        const el = document.getElementById('autosave-indicator');
+        if (!el) return;
+        el.textContent = '✓ ' + msg;
+        el.classList.add('autosave-indicator--visible');
+        clearTimeout(el._hideTimer);
+        el._hideTimer = setTimeout(() => el.classList.remove('autosave-indicator--visible'), 2500);
+    }
+
+    // Автосохранение при вводе в поле заголовка
+    document.getElementById('news-title')?.addEventListener('input', scheduleAutosave);
+
+    // Проверяем наличие черновика при загрузке
+    const draft = (() => {
+        try { return JSON.parse(localStorage.getItem(DRAFT_KEY)); } catch { return null; }
+    })();
+
+    if (draft && (draft.title || draft.content)) {
+        const savedAt = new Date(draft.savedAt).toLocaleString('ru-RU', {
+            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+        });
+        const restore = confirm(`Найден черновик от ${savedAt}.\nВосстановить?`);
+        if (restore) {
+            if (draft.title) document.getElementById('news-title').value = draft.title;
+            if (draft.content) quill.root.innerHTML = draft.content;
+            updateCounter();
+            showAutosaveIndicator('Черновик восстановлен');
+        } else {
+            localStorage.removeItem(DRAFT_KEY);
+        }
+    }
+
+    // Очищаем черновик после успешной публикации
+    quill._clearDraft = () => localStorage.removeItem(DRAFT_KEY);
+}
+
+// ===== Обработчик вставки inline-изображения через тулбар =====
+function quillImageHandler() {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/jpeg,image/png,image/webp');
+    input.click();
+
+    input.addEventListener('change', async () => {
+        const file = input.files[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            showToast('Файл слишком большой (максимум 5 МБ)', 'warning');
+            return;
+        }
+
+        // Запоминаем позицию курсора до загрузки
+        const range = quill.getSelection(true);
+
+        // Вставляем временный placeholder пока грузится
+        quill.insertText(range.index, '⏳ Загрузка...', { color: '#666' });
+        quill.setSelection(range.index + 14);
+
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const res = await fetch('/api/upload-inline', {
+                method: 'POST',
+                headers: authHeaders(), // Content-Type не нужен — браузер сам ставит boundary для FormData
+                body: formData
+            });
+            const data = await res.json();
+
+            // Удаляем placeholder
+            quill.deleteText(range.index, 14);
+
+            if (data.success) {
+                quill.insertEmbed(range.index, 'image', data.url);
+                quill.setSelection(range.index + 1);
+            } else {
+                showToast('Не удалось загрузить изображение: ' + (data.message || ''), 'error');
+            }
+        } catch (err) {
+            quill.deleteText(range.index, 14);
+            showToast('Ошибка загрузки изображения', 'error');
+        }
     });
 }
 
@@ -315,6 +491,21 @@ function initManualBooking() {
     const today = new Date().toISOString().split('T')[0];
     adminDate.setAttribute('min', today);
 
+    // ===== Маска телефона =====
+    const phoneInput = document.getElementById('admin-phone');
+    phoneInput.setAttribute('placeholder', '+7 (___) ___-__-__');
+    phoneInput.setAttribute('maxlength', '18');
+    phoneInput.addEventListener('input', () => {
+        const digits = phoneInput.value.replace(/\D/g, '').slice(0, 11);
+        if (!digits) { phoneInput.value = ''; return; }
+        let result = '+7';
+        if (digits.length > 1) result += ' (' + digits.slice(1, 4);
+        if (digits.length > 4) result += ') ' + digits.slice(4, 7);
+        if (digits.length > 7) result += '-' + digits.slice(7, 9);
+        if (digits.length > 9) result += '-' + digits.slice(9, 11);
+        phoneInput.value = result;
+    });
+
     adminDate.addEventListener('change', async (e) => {
         const date = e.target.value;
         if (!date) return;
@@ -351,11 +542,25 @@ function initManualBooking() {
     adminBookingForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const name = document.getElementById('admin-name').value.trim();
-        const phone = document.getElementById('admin-phone').value.trim();
+        const phone = phoneInput.value.trim();
         const datetime = adminTime.value;
 
         if (!name || !phone || !datetime) {
             showToast('Заполните все поля', 'warning');
+            return;
+        }
+
+        // Имя: минимум 2 символа
+        if (name.length < 2) {
+            showToast('Введите корректное имя (минимум 2 символа)', 'warning');
+            return;
+        }
+
+        // Телефон: 11 цифр, начало 7 или 8
+        const phoneDigits = phone.replace(/\D/g, '');
+        if (phoneDigits.length !== 11 || (phoneDigits[0] !== '7' && phoneDigits[0] !== '8')) {
+            showToast('Введите корректный российский номер телефона', 'warning');
+            phoneInput.focus();
             return;
         }
 
@@ -434,21 +639,21 @@ function initForms() {
     });
 
     document.getElementById('news-image').addEventListener('change', (e) => {
-        const files = e.target.files;
+        const files = Array.from(e.target.files);
         const label = document.getElementById('file-label-text');
         label.textContent = files.length > 0
             ? `✅ Выбрано файлов: ${files.length}`
             : '📎 Прикрепить изображения (можно несколько)';
 
+        // Удаляем старые новые превью
         document.querySelectorAll('#images-preview .img-preview-item--new').forEach(el => el.remove());
 
         for (const file of files) {
             const reader = new FileReader();
             reader.onload = (ev) => {
-                const item = document.createElement('div');
-                item.className = 'img-preview-item img-preview-item--new';
-                item.innerHTML = `<img src="${ev.target.result}" alt=""><span class="img-preview-badge">Новое</span>`;
+                const item = createPreviewItem(ev.target.result, 'new', null, file);
                 document.getElementById('images-preview').appendChild(item);
+                initDragAndDrop();
             };
             reader.readAsDataURL(file);
         }
@@ -631,17 +836,93 @@ function switchTab(tabId) {
     document.getElementById(tabId).classList.add('active');
 }
 
-function addExistingImagePreview(path) {
-    const preview = document.getElementById('images-preview');
+// ===== СОЗДАНИЕ ПРЕВЬЮ-ЭЛЕМЕНТА =====
+// type: 'new' | 'existing'
+// file: File object (для новых) | null (для существующих)
+function createPreviewItem(src, type, path, file) {
     const item = document.createElement('div');
-    item.className = 'img-preview-item img-preview-item--existing';
-    item.dataset.path = path;
+    item.className = `img-preview-item img-preview-item--${type}`;
+    item.draggable = true;
+    if (path) item.dataset.path = path;
+    if (file) item._file = file; // храним File прямо на DOM-элементе
+
+    const badge = type === 'new' ? '<span class="img-preview-badge">Новое</span>' : '';
     item.innerHTML = `
-        <img src="${path}" alt="">
+        <img src="${src}" alt="">
         <button type="button" class="img-preview-remove" title="Удалить">×</button>
+        <div class="img-preview-drag-handle" title="Перетащить">⠿</div>
+        ${badge}
     `;
     item.querySelector('.img-preview-remove').addEventListener('click', () => item.remove());
-    preview.appendChild(item);
+    return item;
+}
+
+function addExistingImagePreview(path) {
+    const item = createPreviewItem(path, 'existing', path, null);
+    document.getElementById('images-preview').appendChild(item);
+    initDragAndDrop();
+}
+
+// ===== DRAG-AND-DROP СОРТИРОВКА =====
+let dragSrc = null;
+
+function initDragAndDrop() {
+    const grid = document.getElementById('images-preview');
+    const items = grid.querySelectorAll('.img-preview-item');
+
+    items.forEach(item => {
+        item.removeEventListener('dragstart', onDragStart);
+        item.removeEventListener('dragover', onDragOver);
+        item.removeEventListener('drop', onDrop);
+        item.removeEventListener('dragend', onDragEnd);
+        item.removeEventListener('dragleave', onDragLeave);
+
+        item.addEventListener('dragstart', onDragStart);
+        item.addEventListener('dragover', onDragOver);
+        item.addEventListener('drop', onDrop);
+        item.addEventListener('dragend', onDragEnd);
+        item.addEventListener('dragleave', onDragLeave);
+    });
+}
+
+function onDragStart(e) {
+    dragSrc = this;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', ''); // required for Firefox
+    setTimeout(() => this.classList.add('img-preview-dragging'), 0);
+}
+
+function onDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (this !== dragSrc) this.classList.add('img-preview-drag-over');
+}
+
+function onDragLeave() {
+    this.classList.remove('img-preview-drag-over');
+}
+
+function onDrop(e) {
+    e.preventDefault();
+    this.classList.remove('img-preview-drag-over');
+    if (dragSrc === this) return;
+
+    const grid = document.getElementById('images-preview');
+    const items = Array.from(grid.querySelectorAll('.img-preview-item'));
+    const srcIdx = items.indexOf(dragSrc);
+    const tgtIdx = items.indexOf(this);
+
+    if (srcIdx < tgtIdx) {
+        grid.insertBefore(dragSrc, this.nextSibling);
+    } else {
+        grid.insertBefore(dragSrc, this);
+    }
+}
+
+function onDragEnd() {
+    this.classList.remove('img-preview-dragging');
+    document.querySelectorAll('.img-preview-drag-over').forEach(el => el.classList.remove('img-preview-drag-over'));
+    dragSrc = null;
 }
 
 function showNewsPreview() {
@@ -692,6 +973,23 @@ async function submitNews(e) {
     const title = document.getElementById('news-title').value.trim();
     if (!title) {
         showToast('Введите заголовок новости', 'warning');
+        document.getElementById('news-title').focus();
+        return;
+    }
+    if (title.length < 3) {
+        showToast('Заголовок слишком короткий (минимум 3 символа)', 'warning');
+        document.getElementById('news-title').focus();
+        return;
+    }
+    if (title.length > 200) {
+        showToast('Заголовок слишком длинный (максимум 200 символов)', 'warning');
+        return;
+    }
+
+    const contentText = quill.getText().trim();
+    if (!contentText || contentText.length < 10) {
+        showToast('Добавьте текст новости (минимум 10 символов)', 'warning');
+        quill.focus();
         return;
     }
 
@@ -699,15 +997,25 @@ async function submitNews(e) {
     formData.append('title', title);
     formData.append('content', quill.root.innerHTML);
 
+    // Собираем все элементы превью в текущем порядке (после drag-and-drop)
+    const allItems = [...document.querySelectorAll('#images-preview .img-preview-item')];
+    const keptPaths = [];
+    const newFiles = [];
+
+    allItems.forEach(item => {
+        if (item.classList.contains('img-preview-item--existing') && item.dataset.path) {
+            keptPaths.push(item.dataset.path);
+        } else if (item._file) {
+            newFiles.push(item._file);
+        }
+    });
+
     if (isEdit) {
-        const kept = [...document.querySelectorAll('#images-preview .img-preview-item--existing')]
-            .map(el => el.dataset.path)
-            .filter(Boolean);
-        formData.append('keepImages', JSON.stringify(kept));
+        formData.append('keepImages', JSON.stringify(keptPaths));
     }
 
-    const files = document.getElementById('news-image').files;
-    for (const file of files) {
+    // Порядок файлов в FormData = желаемый sort_order
+    for (const file of newFiles) {
         formData.append('images', file);
     }
 
@@ -743,8 +1051,11 @@ function resetNewsForm() {
     document.getElementById('news-form').reset();
     document.getElementById('images-preview').innerHTML = '';
     document.getElementById('file-label-text').textContent = '📎 Прикрепить изображения (можно несколько)';
-    document.querySelector('#news-add .tab-title').textContent = 'Добавить новость';
+    document.querySelector('#news-add .tab-title').textContent = 'Добавить новость ';
     quill.root.innerHTML = '';
+    if (quill._clearDraft) quill._clearDraft();
+    const counter = document.getElementById('editor-char-counter');
+    if (counter) counter.textContent = '0 символов';
 }
 
 // ================= ОТЗЫВЫ =================
@@ -760,6 +1071,22 @@ async function loadAdminReviews() {
 
         renderAdminReviews('reviews-pending', pending, false);
         renderAdminReviews('reviews-approved', approved, true);
+
+        // Бейдж на кнопке вкладки
+        const badge = document.getElementById('reviews-badge');
+        if (badge) {
+            if (pending.length > 0) {
+                badge.textContent = pending.length;
+                badge.style.display = 'inline-flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        // Счётчик в заголовке вкладки браузера
+        const baseTitle = 'Панель управления';
+        document.title = pending.length > 0 ? `(${pending.length}) ${baseTitle}` : baseTitle;
+
     } catch (err) {
         showError('Не удалось загрузить отзывы: ' + err.message);
     }
@@ -778,6 +1105,7 @@ function renderAdminReviews(containerId, reviews, isApproved) {
         const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
         const card = document.createElement('div');
         card.className = 'admin-review-card';
+        card.dataset.id = r.id;
 
         card.innerHTML = `
             <div class="admin-review-header">
@@ -798,11 +1126,19 @@ function renderAdminReviews(containerId, reviews, isApproved) {
 
         if (!isApproved) {
             card.querySelector('.btn-approve').addEventListener('click', async () => {
-                await fetch(`/api/admin/reviews/${r.id}/approve`, {
+                const approvedId = r.id;
+                await fetch(`/api/admin/reviews/${approvedId}/approve`, {
                     method: 'PUT', headers: authHeaders()
                 });
-                loadAdminReviews();
+                await loadAdminReviews();
                 showToast('Отзыв опубликован', 'success');
+                // Подсвечиваем только что одобренный отзыв в колонке "Опубликованные"
+                const approvedCard = document.querySelector(`#reviews-approved [data-id="${approvedId}"]`);
+                if (approvedCard) {
+                    approvedCard.classList.add('admin-review-card--new');
+                    setTimeout(() => approvedCard.classList.remove('admin-review-card--new'), 3000);
+                    approvedCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
             });
         }
 
@@ -817,4 +1153,62 @@ function renderAdminReviews(containerId, reviews, isApproved) {
 
         container.appendChild(card);
     });
+}
+// ==================== СТАТИСТИКА ====================
+async function loadStats() {
+    try {
+        const res = await fetch('/api/stats', { headers: authHeaders() });
+        if (!res.ok) throw new Error('Ошибка загрузки');
+        const s = await res.json();
+
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+        set('stat-week', s.week ?? '—');
+        set('stat-month', s.month ?? '—');
+        set('stat-total', s.total ?? '—');
+        set('stat-rating', s.rating ? s.rating + ' ★' : '—');
+        set('stat-reviews', s.reviews ?? '—');
+        set('stat-pending', s.pending ?? '—');
+
+        // Популярные часы — горизонтальные бары
+        const hoursEl = document.getElementById('stats-hours');
+        if (hoursEl && s.popularHours) {
+            const max = Math.max(...s.popularHours.map(h => h.cnt), 1);
+            hoursEl.innerHTML = s.popularHours.map(h => `
+                <div class="stats-bar-row">
+                    <span class="stats-bar-label">${h.hour}:00</span>
+                    <div class="stats-bar-track">
+                        <div class="stats-bar-fill" style="width:${Math.round(h.cnt/max*100)}%"></div>
+                    </div>
+                    <span class="stats-bar-value">${h.cnt}</span>
+                </div>
+            `).join('') || '<p class="empty-state">Нет данных</p>';
+        }
+
+        // Дни недели
+        const wdEl = document.getElementById('stats-weekdays');
+        if (wdEl && s.weekdays) {
+            const max = Math.max(...s.weekdays.map(d => d.cnt), 1);
+            wdEl.innerHTML = s.weekdays.map(d => `
+                <div class="stats-bar-row">
+                    <span class="stats-bar-label">${d.name}</span>
+                    <div class="stats-bar-track">
+                        <div class="stats-bar-fill" style="width:${Math.round(d.cnt/max*100)}%"></div>
+                    </div>
+                    <span class="stats-bar-value">${d.cnt}</span>
+                </div>
+            `).join('');
+        }
+
+    } catch (err) {
+        showError('Не удалось загрузить статистику: ' + err.message);
+    }
+}
+// ==================== ВЫХОД ====================
+async function logout() {
+    try {
+        await fetch('/api/admin-logout', { method: 'POST' });
+    } catch {}
+    localStorage.removeItem('adminToken');
+    window.location.href = '/login?tab=admin';
 }

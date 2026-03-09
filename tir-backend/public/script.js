@@ -109,11 +109,20 @@ if (bookingForm) {
             const result = await res.json();
             if (result.success) {
                 const timeStr = selectedTime.split('T')[1].slice(0, 5);
-                const dateStr = new Date(selectedDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+                const dateStr = new Date(selectedDate).toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
                 const successText = document.getElementById('booking-success-text');
-                if (successText) successText.textContent = `${name}, ждём вас ${dateStr} в ${timeStr}`;
+                if (successText) successText.textContent = `${name}, ждём вас!`;
+                // Заполняем детали брони
+                const bsdName = document.getElementById('bsd-name');
+                const bsdDate = document.getElementById('bsd-date');
+                const bsdTime = document.getElementById('bsd-time');
+                if (bsdName) bsdName.textContent = name;
+                if (bsdDate) bsdDate.textContent = dateStr;
+                if (bsdTime) bsdTime.textContent = timeStr;
                 if (bookingForm) bookingForm.style.display = 'none';
-                if (bookingSuccess) bookingSuccess.style.display = 'block';
+                if (bookingSuccess) bookingSuccess.style.display = 'flex';
+                // Скроллим к блоку подтверждения
+                bookingSuccess.scrollIntoView({ behavior: 'smooth', block: 'center' });
             } else {
                 alert('Ошибка: ' + result.message);
             }

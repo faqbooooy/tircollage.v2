@@ -3,7 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Тир Меткий Выстрел</title>
+    <title>Пуля — Стрелковый тир в Белгороде</title>
+    <meta name="description" content="Стрелковый тир «Пуля» в Белгороде. Занятия для новичков и профессионалов, разнообразное оружие, удобная онлайн-запись. Белгород, ул. Горького 61Б.">
+    <meta name="keywords" content="тир Белгород, стрелковый тир, стрельба Белгород, тир Пуля, записаться в тир">
+    <meta name="robots" content="index, follow">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Пуля — Стрелковый тир в Белгороде">
+    <meta property="og:description" content="Стрелковый тир «Пуля» в Белгороде. Занятия для новичков и профессионалов, разнообразное оружие, удобная онлайн-запись.">
+    <meta property="og:image" content="/img/og-preview.jpg">
+    <meta property="og:locale" content="ru_RU">
+    <meta property="og:site_name" content="Тир Пуля">
+    <meta name="yandex-verification" content="ЗАМЕНИТЕ_НА_КОД_ИЗ_ВЕБМАСТЕРА">
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="/img/favicon.ico" type="image/x-icon">
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
@@ -14,7 +24,8 @@
             <a href="#hero" class="logo-link">
                 <h1 class="logo">
                     <div class="logo-top">ПУЛЯ</div>
-                    <div class="logo-bottom">стрелковый тир</div>
+                    <div class="logo-divider"></div>
+                    <div class="logo-bottom">СТРЕЛКОВЫЙ<br>ТИР</div>
                 </h1>
             </a>
             <button class="nav-toggle" aria-label="Открыть меню">
@@ -30,8 +41,8 @@
                     <li><a href="#reviews" class="nav-link">Отзывы</a></li>
                     <li><a href="#contacts" class="nav-link">Контакты</a></li>
                     <li><a href="gallery.html" class="nav-link">Галерея</a></li>
-                    <li><a href="/admin-login" class="nav-link">Вход</a></li>
-                    <li class="mobile-phone-item"><a href="tel:+74951234567" class="nav-link">📞 +7 (495) 123-45-67
+                    <li><a href="/login" class="nav-link">Вход</a></li>
+                    <li class="mobile-phone-item"><a href="tel:+74951234567" class="nav-link">📞 +7 (495) 123-45-67</a></li>
                 </ul>
             </nav>
             <div class="header-actions">
@@ -45,13 +56,17 @@
     <section id="hero" class="hero">
         <div class="hero-bg"></div>
         <video class="hero-video" muted loop playsinline>
-        <source src="/img/Пуля.mp4" type="video/mp4">
-                Ваш браузер не поддерживает видео.
+            <source src="/img/Пуля.mp4" type="video/mp4">
         </video>
         <div class="hero-overlay"></div>
         <div class="container hero-content">
-            <h1 class="hero-title">Тир Меткий Выстрел</h1>
-            <p class="hero-subtitle">Попади в цель с первого выстрела!</p>
+            <div class="hero-label">
+                <span class="hero-label-line"></span>
+                <span class="hero-label-text">БЕЛГОРОД</span>
+                <span class="hero-label-line"></span>
+            </div>
+            <h1 class="hero-title">ПУЛЯ</h1>
+            <p class="hero-subtitle">Точность — наш калибр</p>
             <a href="#booking" class="btn btn-primary mobile-hero-btn">Записаться</a>
         </div>
     </section>
@@ -70,7 +85,7 @@
         <div class="container">
             <h2 class="section-title">О нас</h2>
             <div class="about-box">
-                <p class="section-text">Добро пожаловать в Тир Меткий Выстрел — место, где вы можете научиться стрелять, отточить свои навыки или просто провести время с адреналином. Мы предлагаем безопасную среду, сертифицированных инструкторов и широкий выбор оружия.</p>
+                <p class="section-text">Тир «Пуля» — место, где вы можете научиться стрелять, отточить навыки или просто провести время с адреналином. Мы предлагаем безопасную среду, сертифицированных инструкторов и широкий выбор оружия.</p>
             </div>
         </div>
     </section>
@@ -152,12 +167,21 @@
                     </div>
                 </article>
                 <article class="weapon-item">
-                    <div class="weapon-image"><img src="/img\czp9x19.jpeg" alt="Пистолет CZ P-09"></div>
+                    <div class="weapon-image"><img src="/img/cz_p_9x19.jpeg" alt="Пистолет CZ P-09"></div>
                     <div class="weapon-description">
                         <p>Пистолет CZ P-09</p>
                         <p>Калибр: 9x19mm Parabellum</p>
                         <p>Страна: Чехия</p>
                         <p>Стоимость выстрела: 65₽</p>
+                    </div>
+                </article>
+                <article class="weapon-item">
+                    <div class="weapon-image"><img src="/img/hk_usp.jpeg" alt="Пистолет H&K USP"></div>
+                    <div class="weapon-description">
+                        <p>Пистолет H&K USP</p>
+                        <p>Калибр: .45 ACP</p>
+                        <p>Страна: Германия</p>
+                        <p>Стоимость выстрела: 70₽</p>
                     </div>
                 </article>
             </div>
@@ -223,13 +247,12 @@
         <div class="container">
             <h2 class="section-title">Контакты</h2>
             <p class="contact-info" itemprop="address" itemscope itemtype="http://schema.org/PostalAddress">
-                Адрес: <span itemprop="streetAddress">г. Москва, ул. Стрелковая, д. 10</span>
+                Адрес: <span itemprop="streetAddress">г. Белгород, ул. Горького 61Б</span>
             </p>
             <p class="contact-info">Телефон: <a href="tel:+74951234567" class="link" itemprop="telephone">+7 (495) 123-45-67</a></p>
-            <p class="contact-info">Email: <a href="/cdn-cgi/l/email-protection#660f08000926120f144b0b0915050911481413" class="link" itemprop="email"><span class="__cf_email__" data-cfemail="88e1e6eee7c8fce1faa5e5e7fbebe7ffa6fafd">[email&#160;protected]</span></a></p>
             <p class="contact-info">Часы работы: Пн-Вс, 10:00–22:00</p>
             <div class="map">
-                <iframe src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d2533.8072007102573!2d36.560759!3d50.5749485!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x412641d5ec5190a1%3A0xc6c057fcba1484a8!2z0YPQuy4g0JPQvtGA0YzQutC-0LPQviwgNjHQkSwg0JHQtdC70LPQvtGA0L7QtCwg0JHQtdC70LPQvtGA0L7QtNGB0LrQsNGPINC-0LHQuy4sINCg0L7RgdGB0LjRjywgMzA4MDI0!5e0!3m2!1sru!2slv!4v1740224402030!5m2!1sru!2slv" width="100%" height="300" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
+                <iframe src="https://yandex.ru/map-widget/v1/?text=%D0%91%D0%B5%D0%BB%D0%B3%D0%BE%D1%80%D0%BE%D0%B4%2C+%D1%83%D0%BB%D0%B8%D1%86%D0%B0+%D0%93%D0%BE%D1%80%D1%8C%D0%BA%D0%BE%D0%B3%D0%BE+61%D0%91&z=17" width="100%" height="300" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
             </div>
         </div>
     </section>
@@ -254,9 +277,28 @@
 
             <!-- Экран "Спасибо" (скрыт по умолчанию) -->
             <div id="booking-success" class="booking-success" style="display:none;">
-                <div class="booking-success-icon">🎯</div>
-                <h3 class="booking-success-title">Вы записаны!</h3>
+                <div class="booking-success-icon">✅</div>
+                <h3 class="booking-success-title">Запись подтверждена!</h3>
                 <p class="booking-success-text" id="booking-success-text"></p>
+                <div class="booking-success-details" id="booking-success-details">
+                    <div class="booking-detail-row">
+                        <span class="booking-detail-label">Имя</span>
+                        <span class="booking-detail-value" id="bsd-name"></span>
+                    </div>
+                    <div class="booking-detail-row">
+                        <span class="booking-detail-label">Дата</span>
+                        <span class="booking-detail-value" id="bsd-date"></span>
+                    </div>
+                    <div class="booking-detail-row">
+                        <span class="booking-detail-label">Время</span>
+                        <span class="booking-detail-value" id="bsd-time"></span>
+                    </div>
+                    <div class="booking-detail-row">
+                        <span class="booking-detail-label">Адрес</span>
+                        <span class="booking-detail-value">г. Белгород, ул. Горького 61Б</span>
+                    </div>
+                </div>
+                <p class="booking-success-note">Если планы изменились — позвоните нам:<br><a href="tel:+74951234567">+7 (495) 123-45-67</a></p>
                 <button class="btn btn-primary" id="booking-success-btn">Записаться ещё раз</button>
             </div>
         </div>
@@ -264,7 +306,7 @@
 
     <footer>
         <div class="container">
-            <p class="footer-text">© 2025 Тир Меткий Выстрел. Все права защищены.</p>
+            <p class="footer-text">© 2025 Тир «Пуля», г. Белгород, ул. Горького 61Б</p>
         </div>
     </footer>
 
