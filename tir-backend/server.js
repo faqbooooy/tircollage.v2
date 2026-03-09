@@ -445,7 +445,7 @@ app.post('/api/upload-inline', checkToken, (req, res) => {
 
 // ==================== НОВОСТИ ====================
 app.get('/api/news', (req, res) => {
-    db.all('SELECT * FROM news ORDER BY date DESC', (err, newsRows) => {
+    db.all('SELECT * FROM news ORDER BY id DESC', (err, newsRows) => {
         if (err) return res.status(500).json({ error: err.message });
         if (newsRows.length === 0) return res.json([]);
 

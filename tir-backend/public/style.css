@@ -26,6 +26,8 @@ body {
     background-attachment: fixed;
     color: #f4f4f4;
     line-height: 1.6;
+    overflow-y: auto;
+    min-height: 100vh;
 }
 
 .container {
@@ -1213,6 +1215,7 @@ footer {
 
 /* ===== СТРАНИЦА ЛОГИНА ===== */
 .login-page {
+    min-height: 100vh;
     background-color: #161616;
     background-image:
         linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
@@ -1228,8 +1231,9 @@ footer {
 
 .login-wrap {
     width: 100%;
-    max-width: 380px;
-    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
 }
 
 .login-box {
@@ -1238,6 +1242,7 @@ footer {
     border-radius: 16px;
     padding: 40px;
     width: 100%;
+    max-width: 380px;
     box-sizing: border-box;
 }
 
@@ -2060,6 +2065,78 @@ footer {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    transition: opacity 0.2s ease;
+}
+
+.news-empty {
+    text-align: center;
+    color: #555;
+    padding: 40px 0;
+    font-size: 15px;
+}
+
+.news-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 32px;
+}
+
+.news-page-btn {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #ccc;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.news-page-btn:hover:not(.disabled) {
+    background: rgba(220,30,30,0.15);
+    border-color: rgba(220,30,30,0.4);
+    color: #fff;
+}
+
+.news-page-btn.disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.news-page-numbers {
+    display: flex;
+    gap: 6px;
+}
+
+.news-page-num {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #999;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.news-page-num:hover {
+    background: rgba(220,30,30,0.1);
+    border-color: rgba(220,30,30,0.3);
+    color: #fff;
+}
+
+.news-page-num.active {
+    background: #dc1e1e;
+    border-color: #dc1e1e;
+    color: #fff;
 }
 
 .news-card {
@@ -2336,7 +2413,7 @@ footer {
 
     .nav-link.active::after { bottom: -10px; }
 
-    header .btn-primary { display: none; }
+    .btn-primary { display: none; }
     .submit-btn { display: inline-block; }
 
     .header-actions { display: none; }
