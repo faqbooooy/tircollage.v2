@@ -26,8 +26,6 @@ body {
     background-attachment: fixed;
     color: #f4f4f4;
     line-height: 1.6;
-    overflow-y: auto;
-    min-height: 100vh;
 }
 
 .container {
@@ -1215,7 +1213,6 @@ footer {
 
 /* ===== СТРАНИЦА ЛОГИНА ===== */
 .login-page {
-    min-height: 100vh;
     background-color: #161616;
     background-image:
         linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
@@ -1231,9 +1228,8 @@ footer {
 
 .login-wrap {
     width: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
+    max-width: 380px;
+    margin: 0 auto;
 }
 
 .login-box {
@@ -1242,7 +1238,6 @@ footer {
     border-radius: 16px;
     padding: 40px;
     width: 100%;
-    max-width: 380px;
     box-sizing: border-box;
 }
 
@@ -1635,6 +1630,26 @@ footer {
     .cabinet-title { font-size: 40px; }
     .pin-digit { width: 44px; height: 50px; font-size: 20px; }
     .login-box { padding: 28px 20px; }
+
+    #step-phone,
+    #step-login,
+    #step-register {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .login-tab-content {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    #admin-login-form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
 }
 
 /* ===== ВКЛАДКИ ===== */
@@ -2321,7 +2336,7 @@ footer {
 
     .nav-link.active::after { bottom: -10px; }
 
-    .btn-primary { display: none; }
+    header .btn-primary { display: none; }
     .submit-btn { display: inline-block; }
 
     .header-actions { display: none; }
@@ -3753,8 +3768,30 @@ footer {
         font-size: 13px !important;
     }
 
+    /* Admin header — убираем absolute позиционирование на мобиле */
+    .admin-header {
+        justify-content: space-between;
+        padding: 0 12px;
+        height: 56px;
+    }
+
     .admin-header h1 {
-        font-size: 16px;
+        font-size: 15px;
+        position: static;
+    }
+
+    .admin-back-btn {
+        position: static;
+        font-size: 12px;
+        padding: 6px 10px;
+        white-space: nowrap;
+    }
+
+    .admin-logout-btn {
+        position: static;
+        font-size: 12px;
+        padding: 6px 10px;
+        white-space: nowrap;
     }
 
     .tab-content {
@@ -3767,6 +3804,20 @@ footer {
 
     .blocked-section {
         padding: 14px 12px;
+    }
+
+    /* Запрещённые дни — один столбец на мобиле */
+    .blocked-layout {
+        grid-template-columns: 1fr;
+    }
+
+    /* Login — каждый шаг как колонка */
+    #step-phone,
+    #step-login,
+    #step-register {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
     }
 }
 
