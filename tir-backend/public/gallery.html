@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Галерея — Тир «Пуля» Белгород</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="/img/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- ШАПКА как на главной -->
+    <header>
+        <div class="container">
+            <a href="index.html#hero" class="logo-link">
+                <h1 class="logo">
+                    <div class="logo-top">ПУЛЯ</div>
+                    <div class="logo-bottom">стрелковый тир</div>
+                </h1>
+            </a>
+            <button class="nav-toggle" aria-label="Открыть меню">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <nav class="nav-menu">
+                <ul>
+                    <li><a href="index.html#services" class="nav-link">Услуги</a></li>
+                    <li><a href="index.html#arsenal" class="nav-link">Арсенал</a></li>
+                    <li><a href="index.html#pricing" class="nav-link">Цены</a></li>
+                    <li><a href="index.html#contacts" class="nav-link">Контакты</a></li>
+                    <li><a href="gallery.html" class="nav-link active">Галерея</a></li>
+                    <li><a href="/login" class="nav-link">Вход</a></li>
+                    <li class="mobile-phone-item"><a href="tel:+74951234567" class="nav-link">📞 +7 (495) 123-45-67</a></li>
+                </ul>
+            </nav>
+            <div class="header-actions">
+                <a href="index.html#booking" class="btn btn-primary">Записаться</a>
+                <a href="tel:+74951234567" class="header-phone">📞 +7 (495) 123-45-67</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- ГАЛЕРЕЯ -->
+    <section class="gallery-page">
+        <div class="container">
+            <h1 class="gallery-title">Галерея</h1>
+
+            <div class="gallery-masonry" id="gallery-masonry">
+                <div class="gallery-masonry-item">
+                    <img src="/img/1.jpg" alt="Тир 1" class="gallery-img" data-index="0">
+                </div>
+                <div class="gallery-masonry-item">
+                    <img src="/img/2.jpg" alt="Тир 2" class="gallery-img" data-index="1">
+                </div>
+                <div class="gallery-masonry-item">
+                    <img src="/img/3.jpg" alt="Тир 3" class="gallery-img" data-index="2">
+                </div>
+                <div class="gallery-masonry-item">
+                    <img src="/img/4.jpg" alt="Тир 4" class="gallery-img" data-index="3">
+                </div>
+                <div class="gallery-masonry-item">
+                    <img src="/img/5.jpg" alt="Тир 5" class="gallery-img" data-index="4">
+                </div>
+                <div class="gallery-masonry-item">
+                    <img src="/img/6.jpg" alt="Тир 6" class="gallery-img" data-index="5">
+                </div>
+                <div class="gallery-masonry-item">
+                    <img src="/img/7.jpg" alt="Тир 7" class="gallery-img" data-index="6">
+                </div>
+                <div class="gallery-masonry-item">
+                    <img src="/img/tir8.jpg" alt="Тир 8" class="gallery-img" data-index="7">
+                </div>
+            </div>
+
+            <a href="index.html#hero" class="btn btn-primary gallery-back-btn">← Вернуться на главную</a>
+        </div>
+    </section>
+
+    <!-- ЛАЙТБОКС -->
+    <div id="gallery-lightbox" class="gallery-lightbox">
+        <button class="gallery-lightbox-close" id="lb-close">✕</button>
+        <button class="gallery-lightbox-arrow gallery-lightbox-prev" id="lb-prev">&#8592;</button>
+        <div class="gallery-lightbox-img-wrap">
+            <img src="" alt="" id="lb-img" class="gallery-lightbox-img">
+        </div>
+        <button class="gallery-lightbox-arrow gallery-lightbox-next" id="lb-next">&#8594;</button>
+        <div class="gallery-lightbox-counter" id="lb-counter"></div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p class="footer-text">© 2025 Тир «Пуля», г. Белгород, ул. Горького 61Б</p>
+            <a href="index.html#booking" class="btn btn-primary mobile-only">Записаться</a>
+        </div>
+    </footer>
+
+    <script>
+    // ===== ЛАЙТБОКС =====
+    const images = Array.from(document.querySelectorAll('.gallery-img'));
+    const lightbox = document.getElementById('gallery-lightbox');
+    const lbImg = document.getElementById('lb-img');
+    const lbCounter = document.getElementById('lb-counter');
+    let current = 0;
+
+    function openLightbox(index) {
+        current = index;
+        lbImg.src = images[current].src;
+        lbImg.alt = images[current].alt;
+        lbCounter.textContent = (current + 1) + ' / ' + images.length;
+        lightbox.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+        lightbox.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    function showPrev() {
+        current = (current - 1 + images.length) % images.length;
+        lbImg.src = images[current].src;
+        lbCounter.textContent = (current + 1) + ' / ' + images.length;
+    }
+
+    function showNext() {
+        current = (current + 1) % images.length;
+        lbImg.src = images[current].src;
+        lbCounter.textContent = (current + 1) + ' / ' + images.length;
+    }
+
+    images.forEach((img, i) => {
+        img.closest('.gallery-masonry-item').addEventListener('click', () => openLightbox(i));
+    });
+    document.getElementById('lb-close').addEventListener('click', closeLightbox);
+    document.getElementById('lb-prev').addEventListener('click', showPrev);
+    document.getElementById('lb-next').addEventListener('click', showNext);
+
+    lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
+
+    document.addEventListener('keydown', (e) => {
+        if (!lightbox.classList.contains('active')) return;
+        if (e.key === 'ArrowLeft') showPrev();
+        if (e.key === 'ArrowRight') showNext();
+        if (e.key === 'Escape') closeLightbox();
+    });
+
+    // Свайп на мобильных
+    let touchStartX = 0;
+    lightbox.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+    lightbox.addEventListener('touchend', e => {
+        const diff = touchStartX - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 50) diff > 0 ? showNext() : showPrev();
+    });
+
+    // ===== АНИМАЦИЯ ПОЯВЛЕНИЯ ПРИ СКРОЛЛЕ =====
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry, i) => {
+            if (entry.isIntersecting) {
+                setTimeout(() => entry.target.classList.add('visible'), i * 80);
+                observer.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.gallery-masonry-item').forEach(item => observer.observe(item));
+
+    // ===== МОБИЛЬНОЕ МЕНЮ =====
+    const navToggle = document.querySelector('.nav-toggle');
+    const navMenu = document.querySelector('.nav-menu');
+    if (navToggle) {
+        navToggle.addEventListener('click', () => {
+            navToggle.classList.toggle('active');
+            navMenu.classList.toggle('active');
+        });
+    }
+    </script>
+</body>
+</html>
