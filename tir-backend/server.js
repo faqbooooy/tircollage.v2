@@ -91,6 +91,7 @@ db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS stats_daily (date TEXT PRIMARY KEY, count INTEGER DEFAULT 0)`);
     db.run(`CREATE TABLE IF NOT EXISTS stats_hourly (hour INTEGER PRIMARY KEY, count INTEGER DEFAULT 0)`);
     db.run(`CREATE TABLE IF NOT EXISTS stats_weekday (weekday INTEGER PRIMARY KEY, count INTEGER DEFAULT 0)`);
+    db.run(`CREATE TABLE IF NOT EXISTS blacklist (id INTEGER PRIMARY KEY AUTOINCREMENT, phone TEXT UNIQUE NOT NULL, reason TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)`);
     // Миграция: заполняем статистику из существующих броней если таблицы только что созданы
     db.run('SELECT 1', () => migrateStatsFromBookings());
 });
@@ -309,8 +310,15 @@ app.post('/api/book', bookingLimiter, (req, res) => {
         return res.json({ success: false, message: 'Нельзя забронировать прошедшее время' });
     }
 
-    const bookingDate = datetime.split('T')[0];
-    const bookingTime2 = datetime.split('T')[1]?.slice(0, 5);
+    // Проверка чёрного списка
+    const normalizedPhone = phoneDigits.startsWith('8') ? '7' + phoneDigits.slice(1) : phoneDigits;
+    db.get('SELECT id FROM blacklist WHERE phone = ?', [normalizedPhone], (err, blacklisted) => {
+        if (blacklisted) {
+            return res.json({ success: false, message: 'Запись с этого номера недоступна. Обратитесь в тир.' });
+        }
+
+        const bookingDate = datetime.split('T')[0];
+        const bookingTime2 = datetime.split('T')[1]?.slice(0, 5);
 
     // Проверка заблокированных дней
     db.get('SELECT date FROM blocked_dates WHERE date = ?', [bookingDate], (err, blockedDay) => {
@@ -340,12 +348,45 @@ app.post('/api/book', bookingLimiter, (req, res) => {
             });
         });
     });
+    }); // конец проверки чёрного списка
 });
 
 app.delete('/api/bookings/:id', checkToken, (req, res) => {
     db.run('DELETE FROM bookings WHERE id = ?', [req.params.id], function(err) {
         if (err) return res.status(500).json({ success: false, message: err.message });
         if (this.changes === 0) return res.status(404).json({ success: false, message: 'Бронь не найдена' });
+        res.json({ success: true });
+    });
+});
+
+// ==================== ЧЁРНЫЙ СПИСОК ====================
+app.get('/api/blacklist', checkToken, (req, res) => {
+    db.all('SELECT * FROM blacklist ORDER BY created_at DESC', (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows || []);
+    });
+});
+
+app.post('/api/blacklist', checkToken, (req, res) => {
+    let { phone, reason } = req.body;
+    if (!phone) return res.status(400).json({ success: false, message: 'Укажите номер телефона' });
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length !== 11) return res.status(400).json({ success: false, message: 'Некорректный номер' });
+    const normalized = digits.startsWith('8') ? '7' + digits.slice(1) : digits;
+    db.run('INSERT OR IGNORE INTO blacklist (phone, reason) VALUES (?, ?)',
+        [normalized, reason || ''],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            if (this.changes === 0) return res.json({ success: false, message: 'Номер уже в чёрном списке' });
+            res.json({ success: true, id: this.lastID });
+        }
+    );
+});
+
+app.delete('/api/blacklist/:id', checkToken, (req, res) => {
+    db.run('DELETE FROM blacklist WHERE id = ?', [req.params.id], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ success: false, message: 'Запись не найдена' });
         res.json({ success: true });
     });
 });
@@ -662,7 +703,7 @@ app.get('/api/cabinet/bookings', checkUserToken, (req, res) => {
     );
 });
 
-// Отмена брони (только если до неё > 2 часов)
+// Отмена брони (только если до неё > 1 часа)
 app.delete('/api/cabinet/bookings/:id', checkUserToken, (req, res) => {
     const phone = req.user.phone;
     db.get('SELECT * FROM bookings WHERE id = ?', [req.params.id], (err, booking) => {
@@ -675,11 +716,11 @@ app.delete('/api/cabinet/bookings/:id', checkUserToken, (req, res) => {
             return res.status(403).json({ success: false, message: 'Нет доступа' });
         }
 
-        // Проверяем что до брони > 2 часов
+        // Проверяем что до брони > 1 часа
         const bookingTime = new Date(booking.datetime);
         const hoursUntil = (bookingTime - new Date()) / (1000 * 60 * 60);
-        if (hoursUntil < 2) {
-            return res.status(400).json({ success: false, message: 'Отменить можно не позднее чем за 2 часа до визита' });
+        if (hoursUntil < 1) {
+            return res.status(400).json({ success: false, message: 'Отменить можно не позднее чем за 1 час до визита' });
         }
 
         db.run('DELETE FROM bookings WHERE id = ?', [req.params.id], (err) => {

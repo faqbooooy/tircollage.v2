@@ -87,7 +87,7 @@ function renderBookings(bookings) {
         upcoming.forEach(b => {
             const card = document.createElement('div');
             card.className = 'cabinet-booking-card';
-            const canCancel = hoursUntil(b.datetime) >= 2;
+            const canCancel = hoursUntil(b.datetime) >= 1;
 
             card.innerHTML = `
                 <div class="cabinet-booking-info">
@@ -97,7 +97,7 @@ function renderBookings(bookings) {
                 <div class="cabinet-booking-actions">
                     ${canCancel
                         ? `<button class="cabinet-cancel-btn" data-id="${b.id}" data-date="${formatDateTime(b.datetime)}">Отменить</button>`
-                        : `<span class="cabinet-cancel-soon">Отмена недоступна<br><small>менее 2 часов</small></span>`
+                        : `<span class="cabinet-cancel-soon">Отмена недоступна<br><small>менее 1 часа</small></span>`
                     }
                 </div>
             `;

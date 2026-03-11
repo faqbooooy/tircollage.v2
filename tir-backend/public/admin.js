@@ -1,5 +1,20 @@
 // ================= ИНИЦИАЛИЗАЦИЯ =================
 
+// ===== Универсальная маска телефона =====
+function applyPhoneMask(input) {
+    let v = input.value.replace(/\D/g, '');
+    if (!v) { input.value = ''; return; }
+    if (v[0] === '8') v = '7' + v.substring(1);
+    if (v[0] === '9') v = '7' + v;
+    v = v.substring(0, 11);
+    let f = '+7';
+    if (v.length > 1) f += ' (' + v.substring(1, 4);
+    if (v.length >= 5) f += ') ' + v.substring(4, 7);
+    if (v.length >= 8) f += '-' + v.substring(7, 9);
+    if (v.length >= 10) f += '-' + v.substring(9, 11);
+    input.value = f;
+}
+
 let quill;
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -117,7 +132,8 @@ function initTabs() {
         'news-add': () => {},
         'news-list-tab': loadNews,
         'reviews-tab': loadAdminReviews,
-        'stats-tab': loadStats
+        'stats-tab': loadStats,
+        'blacklist-tab': loadBlacklist
     };
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -495,16 +511,7 @@ function initManualBooking() {
     const phoneInput = document.getElementById('admin-phone');
     phoneInput.setAttribute('placeholder', '+7 (___) ___-__-__');
     phoneInput.setAttribute('maxlength', '18');
-    phoneInput.addEventListener('input', () => {
-        const digits = phoneInput.value.replace(/\D/g, '').slice(0, 11);
-        if (!digits) { phoneInput.value = ''; return; }
-        let result = '+7';
-        if (digits.length > 1) result += ' (' + digits.slice(1, 4);
-        if (digits.length > 4) result += ') ' + digits.slice(4, 7);
-        if (digits.length > 7) result += '-' + digits.slice(7, 9);
-        if (digits.length > 9) result += '-' + digits.slice(9, 11);
-        phoneInput.value = result;
-    });
+    phoneInput.addEventListener('input', (e) => applyPhoneMask(e.target));
 
     adminDate.addEventListener('change', async (e) => {
         const date = e.target.value;
@@ -1092,8 +1099,17 @@ async function loadAdminReviews() {
     }
 }
 
+const ADMIN_REVIEWS_PER_PAGE = 10;
+let adminReviewsPages = { pending: 1, approved: 1 };
+
 function renderAdminReviews(containerId, reviews, isApproved) {
     const container = document.getElementById(containerId);
+    const type = isApproved ? 'approved' : 'pending';
+    const currentPage = adminReviewsPages[type];
+    const totalPages = Math.ceil(reviews.length / ADMIN_REVIEWS_PER_PAGE) || 1;
+    const start = (currentPage - 1) * ADMIN_REVIEWS_PER_PAGE;
+    const pageReviews = reviews.slice(start, start + ADMIN_REVIEWS_PER_PAGE);
+
     container.innerHTML = '';
 
     if (reviews.length === 0) {
@@ -1101,7 +1117,7 @@ function renderAdminReviews(containerId, reviews, isApproved) {
         return;
     }
 
-    reviews.forEach(r => {
+    pageReviews.forEach(r => {
         const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
         const card = document.createElement('div');
         card.className = 'admin-review-card';
@@ -1132,7 +1148,6 @@ function renderAdminReviews(containerId, reviews, isApproved) {
                 });
                 await loadAdminReviews();
                 showToast('Отзыв опубликован', 'success');
-                // Подсвечиваем только что одобренный отзыв в колонке "Опубликованные"
                 const approvedCard = document.querySelector(`#reviews-approved [data-id="${approvedId}"]`);
                 if (approvedCard) {
                     approvedCard.classList.add('admin-review-card--new');
@@ -1153,6 +1168,48 @@ function renderAdminReviews(containerId, reviews, isApproved) {
 
         container.appendChild(card);
     });
+
+    // Пагинация
+    if (totalPages > 1) {
+        const nav = document.createElement('div');
+        nav.className = 'admin-reviews-pagination';
+
+        const prev = document.createElement('button');
+        prev.className = 'news-page-btn' + (currentPage <= 1 ? ' disabled' : '');
+        prev.textContent = '←';
+        prev.disabled = currentPage <= 1;
+        prev.addEventListener('click', () => {
+            adminReviewsPages[type] = currentPage - 1;
+            loadAdminReviews();
+        });
+
+        const nums = document.createElement('div');
+        nums.className = 'news-page-numbers';
+        for (let i = 1; i <= totalPages; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'news-page-num' + (i === currentPage ? ' active' : '');
+            btn.textContent = i;
+            btn.addEventListener('click', () => {
+                adminReviewsPages[type] = i;
+                loadAdminReviews();
+            });
+            nums.appendChild(btn);
+        }
+
+        const next = document.createElement('button');
+        next.className = 'news-page-btn' + (currentPage >= totalPages ? ' disabled' : '');
+        next.textContent = '→';
+        next.disabled = currentPage >= totalPages;
+        next.addEventListener('click', () => {
+            adminReviewsPages[type] = currentPage + 1;
+            loadAdminReviews();
+        });
+
+        nav.appendChild(prev);
+        nav.appendChild(nums);
+        nav.appendChild(next);
+        container.appendChild(nav);
+    }
 }
 // ==================== СТАТИСТИКА ====================
 async function loadStats() {
@@ -1212,3 +1269,84 @@ async function logout() {
     localStorage.removeItem('adminToken');
     window.location.href = '/login?tab=admin';
 }
+// ==================== ЧЁРНЫЙ СПИСОК ====================
+async function loadBlacklist() {
+    try {
+        const res = await fetch('/api/blacklist', { headers: authHeaders() });
+        const list = await res.json();
+        const container = document.getElementById('blacklist-list');
+        if (!container) return;
+
+        if (!list.length) {
+            container.innerHTML = '<p style="color:#555;font-size:14px;">Список пуст</p>';
+            return;
+        }
+
+        container.innerHTML = list.map(item => `
+            <div class="blacklist-item">
+                <div class="blacklist-info">
+                    <span class="blacklist-phone">+7 ${formatPhoneDisplay(item.phone)}</span>
+                    ${item.reason ? `<span class="blacklist-reason">${escapeHtml(item.reason)}</span>` : ''}
+                </div>
+                <button class="blacklist-remove-btn" data-id="${item.id}">✕</button>
+            </div>
+        `).join('');
+
+        container.querySelectorAll('.blacklist-remove-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (!confirm('Удалить номер из чёрного списка?')) return;
+                const res = await fetch(`/api/blacklist/${btn.dataset.id}`, {
+                    method: 'DELETE', headers: authHeaders()
+                });
+                if ((await res.json()).success) loadBlacklist();
+            });
+        });
+    } catch (err) {
+        console.error('Ошибка загрузки чёрного списка:', err);
+    }
+}
+
+function formatPhoneDisplay(digits) {
+    // digits = 7XXXXXXXXXX → (XXX) XXX-XX-XX
+    const d = String(digits).replace(/\D/g, '');
+    const n = d.startsWith('7') ? d.slice(1) : d;
+    if (n.length !== 10) return digits;
+    return `(${n.slice(0,3)}) ${n.slice(3,6)}-${n.slice(6,8)}-${n.slice(8,10)}`;
+}
+
+function escapeHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Инициализация формы чёрного списка
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('blacklist-form');
+    const phoneInput = document.getElementById('blacklist-phone');
+
+    // Маска телефона
+    if (phoneInput) {
+        phoneInput.addEventListener('input', (e) => applyPhoneMask(e.target));
+    }
+
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const phone = phoneInput.value;
+            const reason = document.getElementById('blacklist-reason').value;
+            const res = await fetch('/api/blacklist', {
+                method: 'POST',
+                headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone, reason })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast('Номер добавлен в чёрный список', 'success');
+                phoneInput.value = '';
+                document.getElementById('blacklist-reason').value = '';
+                loadBlacklist();
+            } else {
+                showToast(data.message || 'Ошибка', 'error');
+            }
+        });
+    }
+});

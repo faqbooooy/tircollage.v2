@@ -6,15 +6,25 @@ function showError(msg) {
     el.style.display = msg ? 'block' : 'none';
 }
 
-function formatPhone(value) {
-    const digits = value.replace(/\D/g, '').slice(0, 11);
-    if (!digits) return '';
-    let result = '+7';
-    if (digits.length > 1) result += ' (' + digits.slice(1, 4);
-    if (digits.length > 4) result += ') ' + digits.slice(4, 7);
-    if (digits.length > 7) result += '-' + digits.slice(7, 9);
-    if (digits.length > 9) result += '-' + digits.slice(9, 11);
-    return result;
+// Универсальная маска телефона
+function applyPhoneMask(input) {
+    let v = input.value.replace(/\D/g, '');
+    if (!v) { input.value = ''; return; }
+    if (v[0] === '8') v = '7' + v.substring(1);
+    if (v[0] === '9') v = '7' + v;
+    v = v.substring(0, 11);
+    let f = '+7';
+    if (v.length > 1) f += ' (' + v.substring(1, 4);
+    if (v.length >= 5) f += ') ' + v.substring(4, 7);
+    if (v.length >= 8) f += '-' + v.substring(7, 9);
+    if (v.length >= 10) f += '-' + v.substring(9, 11);
+    input.value = f;
+}
+
+function formatPhone(digits) {
+    const d = String(digits).replace(/\D/g, '');
+    if (d.length !== 11) return digits;
+    return `+7 (${d.slice(1,4)}) ${d.slice(4,7)}-${d.slice(7,9)}-${d.slice(9,11)}`;
 }
 
 function getRawPhone() {
@@ -37,8 +47,7 @@ document.querySelectorAll('.login-tab').forEach(tab => {
 
 const phoneInput = document.getElementById('user-phone');
 phoneInput.addEventListener('input', (e) => {
-    const pos = e.target.selectionStart;
-    e.target.value = formatPhone(e.target.value);
+    applyPhoneMask(e.target);
     showError('');
 });
 

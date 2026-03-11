@@ -24,6 +24,7 @@
     <button class="tab-btn" data-tab="news-add">Добавить новость</button>
     <button class="tab-btn" data-tab="news-list-tab">Опубликованные новости</button>
     <button class="tab-btn" data-tab="reviews-tab">Отзывы <span class="tab-badge" id="reviews-badge" style="display:none"></span></button>
+    <button class="tab-btn" data-tab="blacklist-tab">🚫 Чёрный список</button>
     <button class="tab-btn" data-tab="stats-tab">📊 Статистика</button>
 </div>
 
@@ -185,6 +186,25 @@
         <div class="reviews-admin-col">
             <h3 class="reviews-admin-subtitle">Опубликованные</h3>
             <div id="reviews-approved"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ЧЁРНЫЙ СПИСОК -->
+<div id="blacklist-tab" class="tab-content">
+    <h2 class="tab-title">Чёрный список</h2>
+    <div class="blocked-layout">
+        <div class="blocked-section">
+            <h3 class="blocked-section-title">Добавить номер</h3>
+            <form id="blacklist-form">
+                <input type="tel" id="blacklist-phone" class="input" placeholder="+7 (___) ___-__-__" required>
+                <input type="text" id="blacklist-reason" class="input" placeholder="Причина (необязательно)" maxlength="200">
+                <button type="submit" class="btn btn-primary" style="margin-top:8px;">Добавить в список</button>
+            </form>
+        </div>
+        <div class="blocked-section">
+            <h3 class="blocked-section-title">Заблокированные номера</h3>
+            <div id="blacklist-list"><p style="color:#555;font-size:14px;">Загрузка...</p></div>
         </div>
     </div>
 </div>

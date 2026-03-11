@@ -22,6 +22,7 @@
     <header>
         <div class="container">
             <a href="#hero" class="logo-link">
+                <img src="/img/logo.png" alt="Логотип колледжа" class="college-logo">
                 <h1 class="logo">
                     <div class="logo-top">ПУЛЯ</div>
                     <div class="logo-divider"></div>
@@ -38,7 +39,7 @@
                     <li><a href="#services" class="nav-link">Услуги</a></li>
                     <li><a href="#arsenal" class="nav-link">Арсенал</a></li>
                     <li><a href="#pricing" class="nav-link">Цены</a></li>
-                    <li><a href="#reviews" class="nav-link">Отзывы</a></li>
+                    <li><a href="reviews.html" class="nav-link">Отзывы</a></li>
                     <li><a href="#contacts" class="nav-link">Контакты</a></li>
                     <li><a href="gallery.html" class="nav-link">Галерея</a></li>
                     <li><a href="/login" class="nav-link">Вход</a></li>
@@ -124,11 +125,15 @@
                 <div class="service-card">
                     <div class="service-icon">
                         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                            <rect x="2" y="6" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                            <path d="M12 6V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <path d="M9 4C9 4 9 6 12 6C15 6 15 4 15 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <line x1="2" y1="11" x2="22" y2="11" stroke="currentColor" stroke-width="1.5"/>
+                            <line x1="8" y1="15" x2="16" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                         </svg>
                     </div>
-                    <h3 class="card-title">VIP-программы</h3>
-                    <p class="card-text">Эксклюзивные программы стрельбы. Индивидуальный подход, премиальное оружие, особые условия.</p>
+                    <h3 class="card-title">Подарочный сертификат</h3>
+                    <p class="card-text">Подарите незабываемые впечатления. Сертификат на любую сумму — идеальный подарок для любого случая.</p>
                 </div>
             </div>
         </div>
@@ -203,46 +208,6 @@
     </section>
     <div class="section-divider"><span class="section-divider-icon"></span></div>
 
-    <section id="reviews" class="section">
-        <div class="container">
-            <h2 class="section-title">Отзывы</h2>
-            <div id="reviews-list"></div>
-            <div class="review-form-wrap">
-                <h3 class="review-form-title">Оставить отзыв</h3>
-                <form id="review-form">
-                    <input type="text" id="review-name" class="input" placeholder="Ваше имя" required maxlength="100">
-                    <div class="star-rating" id="star-rating">
-                        <span class="star" data-value="1">★</span>
-                        <span class="star" data-value="2">★</span>
-                        <span class="star" data-value="3">★</span>
-                        <span class="star" data-value="4">★</span>
-                        <span class="star" data-value="5">★</span>
-                    </div>
-                    <input type="hidden" id="review-rating" value="0">
-                    <textarea id="review-text" class="input" placeholder="Расскажите о вашем визите..." required maxlength="1000" rows="4"></textarea>
-                    <!-- Honeypot: скрыто от людей, боты заполняют автоматически -->
-                    <input type="text" id="review-website" name="website" autocomplete="off" tabindex="-1" style="position:absolute;left:-9999px;opacity:0;height:0;" aria-hidden="true">
-                    <button type="submit" class="btn btn-primary submit-btn">Отправить отзыв</button>
-                </form>
-                <div id="review-success" style="display:none;" class="review-success">
-                    <!-- Состояние: ожидает проверки -->
-                    <div id="review-pending-msg">
-                        <p class="review-success-icon">🕐</p>
-                        <p class="review-success-title">Отзыв отправлен!</p>
-                        <p class="review-success-sub">Он появится на сайте после проверки администратором.</p>
-                    </div>
-                    <!-- Состояние: опубликован -->
-                    <div id="review-approved-msg" style="display:none;">
-                        <p class="review-success-icon">✅</p>
-                        <p class="review-success-title">Ваш отзыв опубликован!</p>
-                        <p class="review-success-sub">Спасибо, что поделились впечатлениями.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-    <div class="section-divider"><span class="section-divider-icon"></span></div>
-
     <section id="contacts" class="section" itemscope itemtype="http://schema.org/Organization">
         <div class="container">
             <h2 class="section-title">Контакты</h2>
@@ -299,6 +264,11 @@
                     </div>
                 </div>
                 <p class="booking-success-note">Если планы изменились — позвоните нам:<br><a href="tel:+74951234567">+7 (495) 123-45-67</a></p>
+                <div class="booking-cabinet-hint">
+                    <p class="booking-cabinet-text">Хотите управлять записью онлайн?</p>
+                    <a href="/login" class="btn btn-secondary booking-cabinet-btn">Личный кабинет →</a>
+                    <p class="booking-cabinet-sub">Там можно отменить запись или посмотреть историю визитов</p>
+                </div>
                 <button class="btn btn-primary" id="booking-success-btn">Записаться ещё раз</button>
             </div>
         </div>
@@ -355,5 +325,6 @@
     </div>
 
     <script src="script.js"></script>
+
 </body>
 </html>

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Отзывы — Тир «Пуля» Белгород</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="/img/favicon.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="reviews-body">
+
+    <!-- ШАПКА как на главной/галерее -->
+    <header>
+        <div class="container">
+            <a href="index.html#hero" class="logo-link">
+                <img src="/img/logo.png" alt="Логотип колледжа" class="college-logo">
+                <h1 class="logo">
+                    <div class="logo-top">ПУЛЯ</div>
+                    <div class="logo-divider"></div>
+                    <div class="logo-bottom">СТРЕЛКОВЫЙ<br>ТИР</div>
+                </h1>
+            </a>
+            <button class="nav-toggle" aria-label="Открыть меню">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <nav class="nav-menu">
+                <ul>
+                    <li><a href="index.html#services" class="nav-link">Услуги</a></li>
+                    <li><a href="index.html#arsenal" class="nav-link">Арсенал</a></li>
+                    <li><a href="index.html#pricing" class="nav-link">Цены</a></li>
+                    <li><a href="reviews.html" class="nav-link active">Отзывы</a></li>
+                    <li><a href="gallery.html" class="nav-link">Галерея</a></li>
+                    <li><a href="/login" class="nav-link">Вход</a></li>
+                    <li class="mobile-phone-item"><a href="tel:+74951234567" class="nav-link">📞 +7 (495) 123-45-67</a></li>
+                </ul>
+            </nav>
+            <div class="header-actions">
+                <a href="index.html#booking" class="btn btn-primary">Записаться</a>
+                <a href="tel:+74951234567" class="header-phone">📞 +7 (495) 123-45-67</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- СТРАНИЦА ОТЗЫВОВ -->
+    <section class="reviews-page">
+        <div class="container">
+            <h1 class="reviews-page-title">Отзывы</h1>
+
+            <div id="reviews-page-list" class="reviews-page-list"></div>
+            <div id="reviews-pagination" class="news-pagination"></div>
+
+            <div class="review-form-wrap" id="reviews-form-section">
+                <h2 class="review-form-title">Оставить отзыв</h2>
+                <form id="review-form">
+                    <input type="text" id="review-name" class="input" placeholder="Ваше имя" required maxlength="100">
+                    <div class="star-rating" id="star-rating">
+                        <span class="star" data-value="1">★</span>
+                        <span class="star" data-value="2">★</span>
+                        <span class="star" data-value="3">★</span>
+                        <span class="star" data-value="4">★</span>
+                        <span class="star" data-value="5">★</span>
+                    </div>
+                    <input type="hidden" id="review-rating" value="0">
+                    <textarea id="review-text" class="input" placeholder="Расскажите о вашем визите..." required maxlength="1000" rows="4"></textarea>
+                    <!-- Honeypot -->
+                    <input type="text" id="review-website" name="website" autocomplete="off" tabindex="-1" style="position:absolute;left:-9999px;opacity:0;height:0;" aria-hidden="true">
+                    <button type="submit" class="btn btn-primary submit-btn">Отправить отзыв</button>
+                </form>
+                <div id="review-success" style="display:none;" class="review-success">
+                    <div id="review-pending-msg">
+                        <p class="review-success-icon">🕐</p>
+                        <p class="review-success-title">Отзыв отправлен!</p>
+                        <p class="review-success-sub">Он появится на сайте после проверки администратором.</p>
+                    </div>
+                    <div id="review-approved-msg" style="display:none;">
+                        <p class="review-success-icon">✅</p>
+                        <p class="review-success-title">Ваш отзыв опубликован!</p>
+                        <p class="review-success-sub">Спасибо, что поделились впечатлениями.</p>
+                    </div>
+                </div>
+            </div>
+
+            <a href="index.html#hero" class="btn btn-secondary reviews-back-btn">← Вернуться на главную</a>
+        </div>
+    </section>
+
+    <!-- Кнопка быстрого перехода к форме отзыва -->
+    <div id="scroll-review-form" class="scroll-top scroll-review-form">✎</div>
+
+    <footer>
+        <div class="container">
+            <p class="footer-text">© 2025 Тир «Пуля», г. Белгород, ул. Горького 61Б</p>
+            <a href="index.html#booking" class="btn btn-primary mobile-only">Записаться</a>
+        </div>
+    </footer>
+
+    <script>
+    const REVIEWS_PER_PAGE = 10;
+    let allReviews = [];
+    let currentReviewsPage = 1;
+
+    async function loadAllReviews() {
+        const list = document.getElementById('reviews-page-list');
+        if (!list) return;
+        list.innerHTML = '<p style="text-align:center;color:#666;">Загрузка отзывов...</p>';
+        try {
+            const res = await fetch('/api/reviews');
+            const reviews = await res.json();
+            allReviews = reviews || [];
+            renderReviewsPage(1);
+            checkReviewStatus(allReviews);
+        } catch (e) {
+            list.innerHTML = '<p style="text-align:center;color:#666;">Не удалось загрузить отзывы</p>';
+        }
+    }
+
+    function renderReviewsPage(page) {
+        const list = document.getElementById('reviews-page-list');
+        if (!list) return;
+
+        currentReviewsPage = page;
+        const totalPages = Math.ceil(allReviews.length / REVIEWS_PER_PAGE) || 1;
+        const start = (page - 1) * REVIEWS_PER_PAGE;
+        const pageReviews = allReviews.slice(start, start + REVIEWS_PER_PAGE);
+
+        list.innerHTML = '';
+
+        if (!allReviews.length) {
+            list.innerHTML = '<p style="text-align:center;color:#666;">Отзывов пока нет</p>';
+            renderReviewsPagination(0, 0);
+            return;
+        }
+
+        pageReviews.forEach(r => {
+            const div = document.createElement('div');
+            div.className = 'review-card';
+            const stars = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
+            div.innerHTML = `
+                <div class="review-header">
+                    <span class="review-name"></span>
+                    <span class="review-stars">${stars}</span>
+                </div>
+                <p class="review-text"></p>
+                <small class="review-date"></small>
+            `;
+            div.querySelector('.review-name').textContent = r.name;
+            div.querySelector('.review-text').textContent = r.text;
+            div.querySelector('.review-date').textContent = r.date;
+            list.appendChild(div);
+        });
+
+        renderReviewsPagination(page, totalPages);
+    }
+
+    function renderReviewsPagination(page, totalPages) {
+        const nav = document.getElementById('reviews-pagination');
+        if (!nav) return;
+        nav.innerHTML = '';
+        if (totalPages <= 1) return;
+
+        const prevBtn = document.createElement('button');
+        prevBtn.className = 'news-page-btn' + (page <= 1 ? ' disabled' : '');
+        prevBtn.textContent = '←';
+        prevBtn.disabled = page <= 1;
+        prevBtn.addEventListener('click', () => {
+            document.querySelector('.reviews-page').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            setTimeout(() => renderReviewsPage(page - 1), 300);
+        });
+
+        const pagesWrap = document.createElement('div');
+        pagesWrap.className = 'news-page-numbers';
+        for (let i = 1; i <= totalPages; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'news-page-num' + (i === page ? ' active' : '');
+            btn.textContent = i;
+            btn.addEventListener('click', () => {
+                document.querySelector('.reviews-page').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                setTimeout(() => renderReviewsPage(i), 300);
+            });
+            pagesWrap.appendChild(btn);
+        }
+
+        const nextBtn = document.createElement('button');
+        nextBtn.className = 'news-page-btn' + (page >= totalPages ? ' disabled' : '');
+        nextBtn.textContent = '→';
+        nextBtn.disabled = page >= totalPages;
+        nextBtn.addEventListener('click', () => {
+            document.querySelector('.reviews-page').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            setTimeout(() => renderReviewsPage(page + 1), 300);
+        });
+
+        nav.appendChild(prevBtn);
+        nav.appendChild(pagesWrap);
+        nav.appendChild(nextBtn);
+    }
+
+    const REVIEW_KEY = 'reviewSubmitted';
+    const REVIEW_TTL = 7 * 24 * 60 * 60 * 1000;
+
+    function saveReviewSubmitted(name, id) {
+        localStorage.setItem(REVIEW_KEY, JSON.stringify({
+            id: id ?? null,
+            name: name.trim().toLowerCase(),
+            submittedAt: Date.now()
+        }));
+    }
+
+    function getReviewSubmitted() {
+        try {
+            const data = JSON.parse(localStorage.getItem(REVIEW_KEY));
+            if (!data) return null;
+            if (Date.now() - data.submittedAt > REVIEW_TTL) {
+                localStorage.removeItem(REVIEW_KEY);
+                return null;
+            }
+            return data;
+        } catch {
+            return null;
+        }
+    }
+
+    function checkReviewStatus(approvedReviews) {
+        const submitted = getReviewSubmitted();
+        if (!submitted) return;
+
+        const reviewForm = document.getElementById('review-form');
+        const reviewSuccess = document.getElementById('review-success');
+        const pendingMsg = document.getElementById('review-pending-msg');
+        const approvedMsg = document.getElementById('review-approved-msg');
+        if (!reviewForm || !reviewSuccess) return;
+
+        reviewForm.style.display = 'none';
+        reviewSuccess.style.display = 'block';
+
+        let isApproved = false;
+
+        if (submitted.id) {
+            isApproved = approvedReviews.some(r => r.id === submitted.id);
+        } else {
+            isApproved = approvedReviews.some(
+                r => r.name.trim().toLowerCase() === submitted.name
+            );
+        }
+
+        if (isApproved) {
+            if (pendingMsg) pendingMsg.style.display = 'none';
+            if (approvedMsg) approvedMsg.style.display = 'block';
+            const daysSince = (Date.now() - submitted.submittedAt) / (24 * 60 * 60 * 1000);
+            if (daysSince > 3) localStorage.removeItem(REVIEW_KEY);
+        } else {
+            if (pendingMsg) pendingMsg.style.display = 'block';
+            if (approvedMsg) approvedMsg.style.display = 'none';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadAllReviews();
+
+        const stars = document.querySelectorAll('.star');
+        const ratingInput = document.getElementById('review-rating');
+        let selectedRating = 0;
+        if (stars.length && ratingInput) {
+            stars.forEach(star => {
+                star.addEventListener('click', () => {
+                    selectedRating = +star.dataset.value;
+                    ratingInput.value = selectedRating;
+                    stars.forEach(s => {
+                        s.classList.toggle('active', +s.dataset.value <= selectedRating);
+                    });
+                });
+            });
+        }
+
+        const reviewForm = document.getElementById('review-form');
+        const reviewSuccess = document.getElementById('review-success');
+        if (reviewForm) {
+            reviewForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!selectedRating) { alert('Выберите оценку'); return; }
+                const nameInput = document.getElementById('review-name');
+                const textInput = document.getElementById('review-text');
+                if (!nameInput || !textInput) return;
+                const res = await fetch('/api/reviews', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: nameInput.value,
+                        rating: selectedRating,
+                        text: textInput.value,
+                        website: document.getElementById('review-website')?.value || ''
+                    })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    saveReviewSubmitted(nameInput.value, result.id);
+                    reviewForm.style.display = 'none';
+                    if (reviewSuccess) reviewSuccess.style.display = 'block';
+                } else {
+                    alert(result.message || 'Ошибка при отправке отзыва');
+                }
+            });
+        }
+
+        const scrollReviewForm = document.getElementById('scroll-review-form');
+        const formSection = document.getElementById('reviews-form-section');
+        if (scrollReviewForm && formSection) {
+            window.addEventListener('scroll', () => {
+                scrollReviewForm.classList.toggle('visible', window.scrollY > 300);
+            });
+            scrollReviewForm.addEventListener('click', () => {
+                formSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+        }
+
+        const navToggle = document.querySelector('.nav-toggle');
+        const navMenu = document.querySelector('.nav-menu');
+        if (navToggle && navMenu) {
+            navToggle.addEventListener('click', () => {
+                navToggle.classList.toggle('active');
+                navMenu.classList.toggle('active');
+            });
+        }
+    });
+    </script>
+</body>
+</html>
