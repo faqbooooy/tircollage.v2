@@ -740,3 +740,169 @@ document.addEventListener('DOMContentLoaded', function() {
         heroVideo.style.opacity = '0';
     });
 });
+// ====================== АРСЕНАЛ: БЕСКОНЕЧНАЯ КАРУСЕЛЬ ======================
+window.addEventListener('load', function () {
+    const list = document.querySelector('.weapon-list');
+    if (!list) return;
+
+    const origItems = Array.from(list.querySelectorAll('.weapon-item'));
+    if (!origItems.length) return;
+
+    const n = origItems.length;
+    const VISIBLE = 3;
+    const GAP = 24;
+    let current = 0;
+    let locked = false;
+
+    // DOM: viewport > track > [клоны конца | оригиналы | клоны начала]
+    const viewport = document.createElement('div');
+    viewport.className = 'weapon-carousel-viewport';
+
+    const track = document.createElement('div');
+    track.className = 'weapon-carousel-track';
+
+    origItems.map(el => el.cloneNode(true)).forEach(el => track.appendChild(el));
+    origItems.forEach(el => track.appendChild(el));
+    origItems.map(el => el.cloneNode(true)).forEach(el => track.appendChild(el));
+
+    viewport.appendChild(track);
+    list.innerHTML = '';
+    list.appendChild(viewport);
+
+    // Навигация
+    const nav = document.createElement('div');
+    nav.className = 'weapon-carousel-nav';
+
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'weapon-carousel-btn';
+    prevBtn.innerHTML = '&#8592;';
+
+    const dotsWrap = document.createElement('div');
+    dotsWrap.className = 'weapon-carousel-dots';
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'weapon-carousel-btn';
+    nextBtn.innerHTML = '&#8594;';
+
+    const dots = origItems.map((_, i) => {
+        const d = document.createElement('span');
+        d.className = 'weapon-carousel-dot' + (i === 0 ? ' active' : '');
+        d.addEventListener('click', () => { if (!locked) animateTo(i); });
+        dotsWrap.appendChild(d);
+        return d;
+    });
+
+    nav.appendChild(prevBtn);
+    nav.appendChild(dotsWrap);
+    nav.appendChild(nextBtn);
+    list.appendChild(nav);
+
+    function cardWidth() {
+        return (viewport.offsetWidth - GAP * (VISIBLE - 1)) / VISIBLE;
+    }
+
+    function slotWidth() {
+        return cardWidth() + GAP;
+    }
+
+    function applyWidths() {
+        const w = cardWidth();
+        track.querySelectorAll('.weapon-item').forEach(el => {
+            el.style.width = w + 'px';
+            el.style.minWidth = w + 'px';
+        });
+    }
+
+    // Позиция без анимации
+    function snap(idx) {
+        track.style.transition = 'none';
+        track.style.transform = `translateX(-${(n + idx) * slotWidth()}px)`;
+        void track.offsetWidth; // force reflow
+    }
+
+    // Позиция с анимацией к реальному смещению
+    function slide(toReal, cb) {
+        track.style.transition = 'transform 0.45s cubic-bezier(0.4, 0, 0.2, 1)';
+        track.style.transform = `translateX(-${toReal * slotWidth()}px)`;
+        function done() {
+            track.removeEventListener('transitionend', done);
+            if (cb) cb();
+        }
+        track.addEventListener('transitionend', done);
+    }
+
+    function updateDots(idx) {
+        dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+    }
+
+    function animateTo(newIdx) {
+        locked = true;
+        updateDots(newIdx);
+        slide(n + newIdx, () => {
+            current = newIdx;
+            snap(current);
+            locked = false;
+        });
+    }
+
+    function next() {
+        if (locked) return;
+        locked = true;
+        const newIdx = (current + 1) % n;
+        updateDots(newIdx);
+        // Если в конце — анимируем в клон-после, потом прыгаем на начало
+        if (current === n - 1) {
+            slide(2 * n, () => {
+                current = 0;
+                snap(current);
+                locked = false;
+            });
+        } else {
+            slide(n + newIdx, () => {
+                current = newIdx;
+                locked = false;
+            });
+        }
+    }
+
+    function prev() {
+        if (locked) return;
+        locked = true;
+        const newIdx = (current - 1 + n) % n;
+        updateDots(newIdx);
+        // Если в начале — анимируем в клон-до, потом прыгаем на конец
+        if (current === 0) {
+            slide(0, () => {
+                current = n - 1;
+                snap(current);
+                locked = false;
+            });
+        } else {
+            slide(n + newIdx, () => {
+                current = newIdx;
+                locked = false;
+            });
+        }
+    }
+
+    prevBtn.addEventListener('click', prev);
+    nextBtn.addEventListener('click', next);
+
+    // Свайп
+    let tx = 0;
+    viewport.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
+    viewport.addEventListener('touchend', e => {
+        const d = tx - e.changedTouches[0].clientX;
+        if (Math.abs(d) > 50) d > 0 ? next() : prev();
+    });
+
+    // Инит — после load ширины уже известны
+    applyWidths();
+    snap(current);
+    updateDots(current);
+
+    window.addEventListener('resize', () => {
+        applyWidths();
+        snap(current);
+    });
+});
