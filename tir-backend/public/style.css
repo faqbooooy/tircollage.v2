@@ -1673,7 +1673,7 @@ footer {
     margin-top: 80px;
     background: rgba(255, 255, 255, 0.02);
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    flex-wrap: wrap;
+    flex-wrap: wrap; /* на десктопе переносим, на мобиле переопределяется на nowrap */
 }
 
 .tab-btn {
@@ -3862,9 +3862,22 @@ footer {
 }
 
 @media (max-width: 480px) {
+    .tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        justify-content: flex-start;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding: 12px 16px;
+        gap: 6px;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+
     .tab-btn {
-        flex: 1 1 100% !important;
+        flex-shrink: 0;
         font-size: 13px !important;
+        padding: 8px 14px;
+        white-space: nowrap;
     }
 
     /* Admin header — убираем absolute позиционирование на мобиле */

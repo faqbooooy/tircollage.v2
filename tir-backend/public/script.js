@@ -727,3 +727,23 @@ document.addEventListener('DOMContentLoaded', function() {
         heroVideo.style.opacity = '0';
     });
 });
+// ==================== МОБИЛЬНАЯ КНОПКА "ЗАПИСАТЬСЯ" ====================
+// Скрываем плавающую кнопку когда пользователь видит секцию записи
+const mobileBookBtn = document.querySelector('.mobile-book-btn');
+const bookingSection = document.getElementById('booking');
+
+if (mobileBookBtn && bookingSection) {
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                mobileBookBtn.style.opacity = '0';
+                mobileBookBtn.style.pointerEvents = 'none';
+            } else {
+                mobileBookBtn.style.opacity = '1';
+                mobileBookBtn.style.pointerEvents = 'auto';
+            }
+        });
+    }, { threshold: 0.1 });
+
+    observer.observe(bookingSection);
+}
