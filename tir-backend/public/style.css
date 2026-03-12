@@ -1230,7 +1230,8 @@ footer {
     background-attachment: fixed;
     padding: 40px 20px;
     box-sizing: border-box;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 .login-wrap {
@@ -1238,7 +1239,8 @@ footer {
     display: flex;
     justify-content: center;
     align-items: flex-start;
-    min-height: 100%;
+    flex: 1;
+    padding-bottom: 40px;
 }
 
 .login-box {
@@ -2370,6 +2372,15 @@ footer {
     }
 }
 
+/* ===== МОБИЛЬНЫЙ ФИX: background-attachment ===== */
+/* fixed вызывает repaint всего экрана при скролле на iOS/Android */
+@media (max-width: 768px) {
+    body,
+    .login-page {
+        background-attachment: scroll;
+    }
+}
+
 @media (max-width: 768px) {
     header .container {
         justify-content: center;
@@ -2418,7 +2429,7 @@ footer {
 
     .nav-link.active::after { bottom: -10px; }
 
-    .btn-primary { display: none; }
+    .header-actions .btn-primary { display: none; }
     .submit-btn { display: inline-block; }
 
     .header-actions { display: none; }

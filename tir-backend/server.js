@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
+const compression = require('compression');
 require('dotenv').config();
 
 // Фиксируем часовой пояс Москвы (UTC+3).
@@ -18,6 +19,56 @@ process.env.TZ = 'Europe/Moscow';
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'password';
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-me';
+
+// ==================== КЭШ-БАСТИНГ ====================
+// При старте считаем хэш каждого CSS/JS файла.
+// Хэш вшивается в URL: style.css → style.css?v=a3f9c2
+// Пока файл не менялся — браузер берёт из кэша (max-age: 1 год).
+// Файл изменился → хэш другой → браузер скачивает заново.
+
+const publicDir = path.join(__dirname, 'public');
+
+function getFileHash(filePath) {
+    try {
+        const content = fs.readFileSync(filePath);
+        return crypto.createHash('md5').update(content).digest('hex').slice(0, 8);
+    } catch {
+        return 'no-hash';
+    }
+}
+
+// Считаем хэши всех CSS и JS файлов при старте
+const assetHashes = {};
+const assetFiles = ['style.css', 'script.js', 'login.js', 'cabinet.js', 'admin.js'];
+assetFiles.forEach(file => {
+    const fullPath = path.join(publicDir, file);
+    if (fs.existsSync(fullPath)) {
+        assetHashes[file] = getFileHash(fullPath);
+        console.log(`[assets] ${file}?v=${assetHashes[file]}`);
+    }
+});
+
+// Подставляем хэши в HTML перед отдачей
+function sendHashedHtml(res, htmlFile) {
+    try {
+        let html = fs.readFileSync(path.join(publicDir, htmlFile), 'utf8');
+        // Заменяем href="style.css" → href="style.css?v=a3f9c2"
+        // и src="cabinet.js"  → src="cabinet.js?v=b1d4e8"
+        html = html.replace(
+            /(href|src)="([a-zA-Z0-9_\-]+\.(css|js))"/g,
+            (match, attr, file) => {
+                const hash = assetHashes[file];
+                return hash ? `${attr}="${file}?v=${hash}"` : match;
+            }
+        );
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.send(html);
+    } catch (err) {
+        console.error(`Ошибка чтения ${htmlFile}:`, err.message);
+        res.status(500).send('Ошибка сервера');
+    }
+}
 
 const sqlite3 = require('sqlite3').verbose();
 const multer = require('multer');
@@ -53,6 +104,7 @@ const pinLimiter = rateLimit({
 });
 
 app.set('trust proxy', 1); // Доверяем X-Forwarded-For от nginx для корректного rate limit
+app.use(compression()); // gzip/deflate — сжимает HTML, CSS, JS, JSON ответы
 app.use(helmet({
     // Разрешаем загрузку шрифтов и скриптов с внешних CDN (Quill, Google Fonts)
     contentSecurityPolicy: false,
@@ -61,7 +113,29 @@ app.use(helmet({
 }));
 app.use(express.json());
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
+
+// Статика: картинки и шрифты кэшируются на 30 дней, HTML — не кэшируется
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads'), {
+    maxAge: '30d',
+    immutable: true
+}));
+app.use('/img', express.static(path.join(__dirname, 'public', 'img'), {
+    maxAge: '30d',
+    immutable: true
+}));
+app.use(express.static(path.join(__dirname, 'public'), {
+    etag: true,
+    lastModified: true,
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.css') || filePath.endsWith('.js')) {
+            // Запрос с ?v=хэш → кэшируем на год, файл гарантированно актуален
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+        if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache');
+        }
+    }
+}));
 
 // ==================== БАЗА И ПАПКИ ====================
 const uploadDir = path.join(__dirname, 'public', 'uploads');
@@ -161,10 +235,13 @@ const checkUserToken = (req, res, next) => {
 };
 
 // ==================== СТРАНИЦЫ ====================
-app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
-app.get('/admin-login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
-app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
-app.get('/cabinet', (req, res) => res.sendFile(path.join(__dirname, 'public', 'cabinet.html')));
+app.get('/admin', (req, res) => sendHashedHtml(res, 'admin.html'));
+app.get('/admin-login', (req, res) => sendHashedHtml(res, 'login.html'));
+app.get('/login', (req, res) => sendHashedHtml(res, 'login.html'));
+app.get('/cabinet', (req, res) => sendHashedHtml(res, 'cabinet.html'));
+app.get('/', (req, res) => sendHashedHtml(res, 'index.html'));
+app.get('/gallery', (req, res) => sendHashedHtml(res, 'gallery.html'));
+app.get('/reviews', (req, res) => sendHashedHtml(res, 'reviews.html'));
 
 // ==================== АВТОРИЗАЦИЯ ====================
 
