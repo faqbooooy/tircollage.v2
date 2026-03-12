@@ -62,8 +62,15 @@ function loadAvailableSlots(selectedDate) {
 
 // ====================== ВЫБОР ДАТЫ ======================
 if (dateInput) {
-    dateInput.addEventListener('change', (e) => {
+    dateInput.addEventListener('change', async (e) => {
         const date = e.target.value;
+
+        // Перезапрашиваем актуальные заблокированные даты
+        try {
+            const r = await fetch('/api/blocked-dates');
+            blockedDates = await r.json();
+        } catch { /* используем закешированные */ }
+
         if (blockedDates.includes(date)) {
             alert('В этот день запись недоступна!');
             dateInput.value = '';
@@ -253,11 +260,15 @@ function renderNewsPage(page) {
                 mediaHtml = `<img src="${images[0]}" alt="${item.title}" class="news-single-img">`;
             }
 
+            const safeContent = typeof DOMPurify !== 'undefined'
+                ? DOMPurify.sanitize(item.content)
+                : item.content;
+
             div.innerHTML = `
                 ${mediaHtml}
                 <div class="news-text">
                     <h3></h3>
-                    <div class="news-preview">${item.content}</div>
+                    <div class="news-preview">${safeContent}</div>
                     <small></small>
                     <button class="news-read-more">Читать далее →</button>
                 </div>
@@ -350,7 +361,9 @@ function openNewsModal(item) {
 
     titleEl.textContent = item.title;
     dateEl.textContent = item.date;
-    bodyEl.innerHTML = item.content;
+    bodyEl.innerHTML = typeof DOMPurify !== 'undefined'
+        ? DOMPurify.sanitize(item.content)
+        : item.content;
 
     const images = item.images || (item.image ? [item.image] : []);
     galleryImages = images;
@@ -727,23 +740,3 @@ document.addEventListener('DOMContentLoaded', function() {
         heroVideo.style.opacity = '0';
     });
 });
-// ==================== МОБИЛЬНАЯ КНОПКА "ЗАПИСАТЬСЯ" ====================
-// Скрываем плавающую кнопку когда пользователь видит секцию записи
-const mobileBookBtn = document.querySelector('.mobile-book-btn');
-const bookingSection = document.getElementById('booking');
-
-if (mobileBookBtn && bookingSection) {
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                mobileBookBtn.style.opacity = '0';
-                mobileBookBtn.style.pointerEvents = 'none';
-            } else {
-                mobileBookBtn.style.opacity = '1';
-                mobileBookBtn.style.pointerEvents = 'auto';
-            }
-        });
-    }, { threshold: 0.1 });
-
-    observer.observe(bookingSection);
-}

@@ -572,9 +572,9 @@ function initManualBooking() {
         }
 
         try {
-            const res = await fetch('/api/book', {
+            const res = await fetch('/api/admin/book', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { ...authHeaders(), 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, phone, datetime })
             });
             const result = await res.json();
@@ -1340,13 +1340,82 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await res.json();
             if (data.success) {
-                showToast('Номер добавлен в чёрный список', 'success');
                 phoneInput.value = '';
                 document.getElementById('blacklist-reason').value = '';
                 loadBlacklist();
+
+                // Если есть активные брони — показываем модалку
+                if (data.activeBookings && data.activeBookings.length > 0) {
+                    showBlacklistBookingsModal(data.activeBookings);
+                } else {
+                    showToast('Номер добавлен в чёрный список', 'success');
+                }
             } else {
                 showToast(data.message || 'Ошибка', 'error');
             }
         });
     }
 });
+
+// ==================== МОДАЛКА: БРОНИ ПРИ ДОБАВЛЕНИИ В ЧС ====================
+function showBlacklistBookingsModal(bookings) {
+    const modal = document.getElementById('blacklist-bookings-modal');
+    const list = document.getElementById('blacklist-bookings-list');
+    if (!modal || !list) return;
+
+    // Формируем список броней
+    list.innerHTML = '';
+    bookings.forEach(b => {
+        const dt = new Date(b.datetime);
+        const dateStr = dt.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+        const timeStr = dt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        const li = document.createElement('div');
+        li.className = 'blacklist-modal-booking-item';
+        li.innerHTML = `<span class="blacklist-modal-booking-name"></span><span class="blacklist-modal-booking-date">${dateStr} в ${timeStr}</span>`;
+        li.querySelector('.blacklist-modal-booking-name').textContent = b.name;
+        list.appendChild(li);
+    });
+
+    // Сохраняем ID броней для удаления
+    const confirmBtn = document.getElementById('blacklist-bookings-confirm');
+    const declineBtn = document.getElementById('blacklist-bookings-decline');
+
+    const bookingIds = bookings.map(b => b.id);
+
+    confirmBtn.onclick = async () => {
+        await Promise.all(bookingIds.map(id =>
+            fetch(`/api/bookings/${id}`, { method: 'DELETE', headers: authHeaders() })
+        ));
+        closeBlacklistModal();
+        loadBookings();
+        showToast(`Номер добавлен в ЧС, ${bookings.length} ${declension(bookings.length, ['бронь', 'брони', 'броней'])} удалено`, 'success');
+    };
+
+    declineBtn.onclick = () => {
+        closeBlacklistModal();
+        showToast('Номер добавлен в чёрный список, брони сохранены', 'success');
+    };
+
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    // закрытие по клику на фон
+    modal.onclick = (e) => {
+        if (e.target === modal) closeBlacklistModal();
+    };
+}
+
+function closeBlacklistModal() {
+    const modal = document.getElementById('blacklist-bookings-modal');
+    if (modal) modal.style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+// Склонение числительных
+function declension(n, forms) {
+    const mod10 = n % 10, mod100 = n % 100;
+    if (mod100 >= 11 && mod100 <= 19) return forms[2];
+    if (mod10 === 1) return forms[0];
+    if (mod10 >= 2 && mod10 <= 4) return forms[1];
+    return forms[2];
+}

@@ -4100,6 +4100,127 @@ footer {
     border-color: #dc1e1e;
 }
 
+/* ==================== МОДАЛКА БРОНЕЙ ПРИ ДОБАВЛЕНИИ В ЧС ==================== */
+.blacklist-bookings-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.blacklist-bookings-modal-content {
+    background: #242424;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 32px 28px;
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+    animation: scaleIn 0.2s ease-out;
+}
+
+.blacklist-bookings-modal-icon {
+    font-size: 40px;
+    margin-bottom: 14px;
+}
+
+.blacklist-bookings-modal-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #f4f4f4;
+    margin-bottom: 8px;
+}
+
+.blacklist-bookings-modal-text {
+    font-size: 14px;
+    color: #888;
+    margin-bottom: 20px;
+}
+
+.blacklist-bookings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 24px;
+    text-align: left;
+}
+
+.blacklist-modal-booking-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 8px;
+    gap: 12px;
+}
+
+.blacklist-modal-booking-name {
+    font-size: 14px;
+    color: #f4f4f4;
+    font-weight: 500;
+}
+
+.blacklist-modal-booking-date {
+    font-size: 12px;
+    color: #666;
+    white-space: nowrap;
+}
+
+.blacklist-bookings-modal-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-blacklist-delete {
+    flex: 1;
+    padding: 11px;
+    background: rgba(220,30,30,0.15);
+    border: 1px solid rgba(220,30,30,0.4);
+    border-radius: 8px;
+    color: #ff4444;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.btn-blacklist-delete:hover {
+    background: rgba(220,30,30,0.28);
+    border-color: #dc1e1e;
+}
+
+.btn-blacklist-keep {
+    flex: 1;
+    padding: 11px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    color: #aaa;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.btn-blacklist-keep:hover {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+}
+
+@media (max-width: 480px) {
+    .blacklist-bookings-modal-content { padding: 24px 18px; }
+    .blacklist-bookings-modal-actions { flex-direction: column; }
+    .blacklist-modal-booking-item { flex-direction: column; align-items: flex-start; gap: 4px; }
+}
+
 /* ==================== КНОПКА "ВСЕ ОТЗЫВЫ" ==================== */
 .reviews-footer {
     display: flex;

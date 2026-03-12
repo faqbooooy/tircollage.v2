@@ -6,7 +6,6 @@ const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
-const compression = require('compression');
 require('dotenv').config();
 
 // Фиксируем часовой пояс Москвы (UTC+3).
@@ -19,56 +18,6 @@ process.env.TZ = 'Europe/Moscow';
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'password';
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-me';
-
-// ==================== КЭШ-БАСТИНГ ====================
-// При старте считаем хэш каждого CSS/JS файла.
-// Хэш вшивается в URL: style.css → style.css?v=a3f9c2
-// Пока файл не менялся — браузер берёт из кэша (max-age: 1 год).
-// Файл изменился → хэш другой → браузер скачивает заново.
-
-const publicDir = path.join(__dirname, 'public');
-
-function getFileHash(filePath) {
-    try {
-        const content = fs.readFileSync(filePath);
-        return crypto.createHash('md5').update(content).digest('hex').slice(0, 8);
-    } catch {
-        return 'no-hash';
-    }
-}
-
-// Считаем хэши всех CSS и JS файлов при старте
-const assetHashes = {};
-const assetFiles = ['style.css', 'script.js', 'login.js', 'cabinet.js', 'admin.js'];
-assetFiles.forEach(file => {
-    const fullPath = path.join(publicDir, file);
-    if (fs.existsSync(fullPath)) {
-        assetHashes[file] = getFileHash(fullPath);
-        console.log(`[assets] ${file}?v=${assetHashes[file]}`);
-    }
-});
-
-// Подставляем хэши в HTML перед отдачей
-function sendHashedHtml(res, htmlFile) {
-    try {
-        let html = fs.readFileSync(path.join(publicDir, htmlFile), 'utf8');
-        // Заменяем href="style.css" → href="style.css?v=a3f9c2"
-        // и src="cabinet.js"  → src="cabinet.js?v=b1d4e8"
-        html = html.replace(
-            /(href|src)="([a-zA-Z0-9_\-]+\.(css|js))"/g,
-            (match, attr, file) => {
-                const hash = assetHashes[file];
-                return hash ? `${attr}="${file}?v=${hash}"` : match;
-            }
-        );
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.send(html);
-    } catch (err) {
-        console.error(`Ошибка чтения ${htmlFile}:`, err.message);
-        res.status(500).send('Ошибка сервера');
-    }
-}
 
 const sqlite3 = require('sqlite3').verbose();
 const multer = require('multer');
@@ -104,7 +53,6 @@ const pinLimiter = rateLimit({
 });
 
 app.set('trust proxy', 1); // Доверяем X-Forwarded-For от nginx для корректного rate limit
-app.use(compression()); // gzip/deflate — сжимает HTML, CSS, JS, JSON ответы
 app.use(helmet({
     // Разрешаем загрузку шрифтов и скриптов с внешних CDN (Quill, Google Fonts)
     contentSecurityPolicy: false,
@@ -113,29 +61,7 @@ app.use(helmet({
 }));
 app.use(express.json());
 app.use(cookieParser());
-
-// Статика: картинки и шрифты кэшируются на 30 дней, HTML — не кэшируется
-app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads'), {
-    maxAge: '30d',
-    immutable: true
-}));
-app.use('/img', express.static(path.join(__dirname, 'public', 'img'), {
-    maxAge: '30d',
-    immutable: true
-}));
-app.use(express.static(path.join(__dirname, 'public'), {
-    etag: true,
-    lastModified: true,
-    setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.css') || filePath.endsWith('.js')) {
-            // Запрос с ?v=хэш → кэшируем на год, файл гарантированно актуален
-            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-        }
-        if (filePath.endsWith('.html')) {
-            res.setHeader('Cache-Control', 'no-cache');
-        }
-    }
-}));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // ==================== БАЗА И ПАПКИ ====================
 const uploadDir = path.join(__dirname, 'public', 'uploads');
@@ -235,13 +161,10 @@ const checkUserToken = (req, res, next) => {
 };
 
 // ==================== СТРАНИЦЫ ====================
-app.get('/admin', (req, res) => sendHashedHtml(res, 'admin.html'));
-app.get('/admin-login', (req, res) => sendHashedHtml(res, 'login.html'));
-app.get('/login', (req, res) => sendHashedHtml(res, 'login.html'));
-app.get('/cabinet', (req, res) => sendHashedHtml(res, 'cabinet.html'));
-app.get('/', (req, res) => sendHashedHtml(res, 'index.html'));
-app.get('/gallery', (req, res) => sendHashedHtml(res, 'gallery.html'));
-app.get('/reviews', (req, res) => sendHashedHtml(res, 'reviews.html'));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
+app.get('/admin-login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+app.get('/cabinet', (req, res) => res.sendFile(path.join(__dirname, 'public', 'cabinet.html')));
 
 // ==================== АВТОРИЗАЦИЯ ====================
 
@@ -428,6 +351,55 @@ app.post('/api/book', bookingLimiter, (req, res) => {
     }); // конец проверки чёрного списка
 });
 
+// Ручное добавление брони администратором — без rate limit
+app.post('/api/admin/book', checkToken, (req, res) => {
+    const { name, phone, datetime } = req.body;
+
+    if (!name || !phone || !datetime) {
+        return res.status(400).json({ success: false, message: 'Заполните все поля' });
+    }
+    if (name.trim().length < 2) {
+        return res.status(400).json({ success: false, message: 'Укажите корректное имя' });
+    }
+
+    const phoneDigits = phone.replace(/\D/g, '');
+    const isRussianPhone = phoneDigits.length === 11 && (phoneDigits[0] === '7' || phoneDigits[0] === '8');
+    if (!isRussianPhone) {
+        return res.status(400).json({ success: false, message: 'Укажите российский номер телефона' });
+    }
+
+    const bookingTime = new Date(datetime);
+    if (isNaN(bookingTime.getTime())) {
+        return res.status(400).json({ success: false, message: 'Некорректный формат времени' });
+    }
+
+    const bookingDate = datetime.split('T')[0];
+    const bookingTimeStr = datetime.split('T')[1]?.slice(0, 5);
+
+    db.get('SELECT date FROM blocked_dates WHERE date = ?', [bookingDate], (err, blockedDay) => {
+        if (blockedDay) return res.json({ success: false, message: 'В этот день запись недоступна' });
+
+        db.all('SELECT start_time, end_time FROM blocked_ranges WHERE date = ?', [bookingDate], (err, ranges) => {
+            const isBlocked = (ranges || []).some(r => bookingTimeStr >= r.start_time && bookingTimeStr < r.end_time);
+            if (isBlocked) return res.json({ success: false, message: 'Это время недоступно для записи' });
+
+            db.run('INSERT INTO bookings (name, phone, datetime) VALUES (?, ?, ?)',
+                [name.trim(), phone.trim(), datetime],
+                function(err) {
+                    if (err) {
+                        if (err.message.includes('UNIQUE')) {
+                            return res.json({ success: false, message: 'Это время уже занято!' });
+                        }
+                        return res.status(500).json({ success: false, message: 'Ошибка базы данных' });
+                    }
+                    incrementStats(datetime);
+                    res.json({ success: true });
+                }
+            );
+        });
+    });
+});
+
 app.delete('/api/bookings/:id', checkToken, (req, res) => {
     db.run('DELETE FROM bookings WHERE id = ?', [req.params.id], function(err) {
         if (err) return res.status(500).json({ success: false, message: err.message });
@@ -450,12 +422,27 @@ app.post('/api/blacklist', checkToken, (req, res) => {
     const digits = phone.replace(/\D/g, '');
     if (digits.length !== 11) return res.status(400).json({ success: false, message: 'Некорректный номер' });
     const normalized = digits.startsWith('8') ? '7' + digits.slice(1) : digits;
+
     db.run('INSERT OR IGNORE INTO blacklist (phone, reason) VALUES (?, ?)',
         [normalized, reason || ''],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             if (this.changes === 0) return res.json({ success: false, message: 'Номер уже в чёрном списке' });
-            res.json({ success: true, id: this.lastID });
+
+            // Ищем активные брони этого номера (в будущем)
+            const d = new Date();
+            const now = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+            db.all(
+                `SELECT id, name, datetime FROM bookings
+                 WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone," ",""),"-",""),"(",""),")",""),"+","") = ?
+                 AND datetime >= ?
+                 ORDER BY datetime ASC`,
+                [normalized, now],
+                (err, bookings) => {
+                    if (err) return res.json({ success: true, activeBookings: [] });
+                    res.json({ success: true, id: this.lastID, activeBookings: bookings || [] });
+                }
+            );
         }
     );
 });
@@ -933,15 +920,15 @@ function migrateStatsFromBookings() {
 
 // ==================== АВТОУДАЛЕНИЕ СТАРЫХ БРОНЕЙ ====================
 function cleanupOldBookings() {
-    // Удаляем брони, дата которых была более 14 дней назад
+    // Удаляем брони, дата которых была более 1 года назад
     const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 14);
+    cutoff.setFullYear(cutoff.getFullYear() - 1);
     const cutoffStr = cutoff.toISOString().slice(0, 16); // YYYY-MM-DDTHH:MM
 
     db.run('DELETE FROM bookings WHERE datetime < ?', [cutoffStr], function(err) {
         if (err) return console.error('Ошибка очистки броней:', err.message);
         if (this.changes > 0) {
-            console.log(`Автоудаление: удалено ${this.changes} устаревших броней (старше 14 дней)`);
+            console.log(`Автоудаление: удалено ${this.changes} устаревших броней (старше 1 года)`);
         }
     });
 }
