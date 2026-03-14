@@ -165,6 +165,7 @@ app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'adm
 app.get('/admin-login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/cabinet', (req, res) => res.sendFile(path.join(__dirname, 'public', 'cabinet.html')));
+app.get('/safe-handling', (req, res) => res.sendFile(path.join(__dirname, 'public', 'safe-handling.html')));
 
 // ==================== АВТОРИЗАЦИЯ ====================
 
