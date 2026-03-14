@@ -337,7 +337,8 @@ app.post('/api/book', bookingLimiter, (req, res) => {
                 return res.json({ success: false, message: 'Это время недоступно для записи' });
             }
 
-            db.run('INSERT INTO bookings (name, phone, datetime) VALUES (?, ?, ?)', [name.trim(), phone.trim(), datetime], function(err) {
+            // БАГ 5 FIX: сохраняем нормализованный телефон (только цифры, начиная с 7)
+            db.run('INSERT INTO bookings (name, phone, datetime) VALUES (?, ?, ?)', [name.trim(), normalizedPhone, datetime], function(err) {
                 if (err) {
                     if (err.message.includes('UNIQUE')) {
                         return res.json({ success: false, message: 'Это время уже занято!' });
@@ -368,6 +369,8 @@ app.post('/api/admin/book', checkToken, (req, res) => {
     if (!isRussianPhone) {
         return res.status(400).json({ success: false, message: 'Укажите российский номер телефона' });
     }
+    // БАГ 5 FIX: нормализуем телефон перед сохранением
+    const normalizedAdminPhone = phoneDigits.startsWith('8') ? '7' + phoneDigits.slice(1) : phoneDigits;
 
     const bookingTime = new Date(datetime);
     if (isNaN(bookingTime.getTime())) {
@@ -385,7 +388,7 @@ app.post('/api/admin/book', checkToken, (req, res) => {
             if (isBlocked) return res.json({ success: false, message: 'Это время недоступно для записи' });
 
             db.run('INSERT INTO bookings (name, phone, datetime) VALUES (?, ?, ?)',
-                [name.trim(), phone.trim(), datetime],
+                [name.trim(), normalizedAdminPhone, datetime],
                 function(err) {
                     if (err) {
                         if (err.message.includes('UNIQUE')) {
@@ -465,34 +468,43 @@ app.get('/api/available-slots', (req, res) => {
         return res.status(400).json({ error: 'Укажите корректную дату (YYYY-MM-DD)' });
     }
 
-    const slots = [];
-    for (let h = 10; h < 22; h++) slots.push(`${date}T${h.toString().padStart(2, '0')}:00`);
-
-    db.all('SELECT datetime FROM bookings WHERE datetime LIKE ?', [`${date}%`], (err, bookedRows) => {
+    // БАГ 1 FIX: проверяем заблокированные дни до генерации слотов
+    db.get('SELECT date FROM blocked_dates WHERE date = ?', [date], (err, blockedDay) => {
         if (err) return res.status(500).json({ error: 'Ошибка базы данных' });
-        const booked = bookedRows.map(r => r.datetime);
+        if (blockedDay) return res.json([]); // весь день заблокирован — слотов нет
 
-        db.all('SELECT start_time, end_time FROM blocked_ranges WHERE date = ?', [date], (err, ranges) => {
+        const slots = [];
+        for (let h = 10; h < 22; h++) slots.push(`${date}T${h.toString().padStart(2, '0')}:00`);
+
+        db.all('SELECT datetime FROM bookings WHERE datetime LIKE ?', [`${date}%`], (err, bookedRows) => {
             if (err) return res.status(500).json({ error: 'Ошибка базы данных' });
-            const available = slots.filter(s => {
-                if (booked.includes(s)) return false;
+            const booked = bookedRows.map(r => r.datetime);
 
-                const slotTime = s.split('T')[1];
-                for (const range of ranges) {
-                    if (slotTime >= range.start_time && slotTime < range.end_time) return false;
-                }
+            db.all('SELECT start_time, end_time FROM blocked_ranges WHERE date = ?', [date], (err, ranges) => {
+                if (err) return res.status(500).json({ error: 'Ошибка базы данных' });
+                const available = slots.filter(s => {
+                    if (booked.includes(s)) return false;
 
-                return true;
+                    const slotTime = s.split('T')[1];
+                    for (const range of ranges) {
+                        if (slotTime >= range.start_time && slotTime < range.end_time) return false;
+                    }
+
+                    return true;
+                });
+
+                res.json(available.map(s => ({ datetime: s })));
             });
-
-            res.json(available.map(s => ({ datetime: s })));
         });
     });
 });
 
 // ==================== ДАТЫ ====================
 app.get('/api/blocked-dates', (req, res) => {
-    db.all('SELECT date FROM blocked_dates', (err, rows) => res.json(rows.map(r => r.date)));
+    db.all('SELECT date FROM blocked_dates', (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json((rows || []).map(r => r.date));
+    });
 });
 
 app.post('/api/block-date', checkToken, (req, res) => {
@@ -507,7 +519,7 @@ app.delete('/api/blocked-dates/:date', checkToken, (req, res) => {
 });
 
 // ==================== БЛОКИРОВКА ВРЕМЕННЫХ ДИАПАЗОНОВ ====================
-app.get('/api/blocked-ranges', (req, res) => {
+app.get('/api/blocked-ranges', checkToken, (req, res) => {
     db.all('SELECT * FROM blocked_ranges ORDER BY date, start_time', (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
@@ -798,16 +810,24 @@ app.delete('/api/cabinet/bookings/:id', checkUserToken, (req, res) => {
 // Мои отзывы
 app.get('/api/cabinet/reviews', checkUserToken, (req, res) => {
     const phone = req.user.phone;
-    // Ищем отзывы по имени — связываем через брони этого телефона
-    db.get(
-        `SELECT name FROM bookings WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone," ",""),"-",""),"(",""),")",""),"+","") = ? LIMIT 1`,
+    // БАГ 8 FIX: берём все уникальные имена этого номера (не только первое),
+    // иначе брони под разными именами не показывают все отзывы
+    db.all(
+        `SELECT DISTINCT name FROM bookings
+         WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone," ",""),"-",""),"(",""),")",""),"+","") = ?`,
         [phone],
-        (err, booking) => {
-            if (err || !booking) return res.json([]);
-            db.all('SELECT * FROM reviews WHERE name = ? ORDER BY date DESC', [booking.name], (err, rows) => {
-                if (err) return res.status(500).json({ error: err.message });
-                res.json(rows);
-            });
+        (err, nameRows) => {
+            if (err || !nameRows || nameRows.length === 0) return res.json([]);
+            const names = nameRows.map(r => r.name);
+            const placeholders = names.map(() => '?').join(',');
+            db.all(
+                `SELECT * FROM reviews WHERE name IN (${placeholders}) ORDER BY date DESC`,
+                names,
+                (err, rows) => {
+                    if (err) return res.status(500).json({ error: err.message });
+                    res.json(rows);
+                }
+            );
         }
     );
 });

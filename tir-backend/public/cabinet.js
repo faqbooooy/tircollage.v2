@@ -13,6 +13,15 @@ function parsePhone(token) {
     } catch { return ''; }
 }
 
+// БАГ 11 FIX: проверяем истёк ли токен по полю exp в payload
+// Если истёк — показываем понятное сообщение вместо молчаливого редиректа
+function isTokenExpired(token) {
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.exp && payload.exp * 1000 < Date.now();
+    } catch { return true; }
+}
+
 function formatPhone(phone) {
     const d = String(phone).replace(/\D/g, '');
     if (d.length !== 11) return phone;
@@ -24,10 +33,20 @@ function formatPhone(phone) {
     const token = getToken();
     if (!token) { window.location.replace('/login'); return; }
 
+    // БАГ 11 FIX: проверяем срок токена до запроса — показываем понятный тост
+    if (isTokenExpired(token)) {
+        localStorage.removeItem('userToken');
+        // Передаём сообщение через sessionStorage чтобы показать на странице логина
+        sessionStorage.setItem('loginHint', 'Сессия истекла, войдите снова');
+        window.location.replace('/login');
+        return;
+    }
+
     try {
         const res = await fetch('/api/cabinet/bookings', { headers: authHeaders() });
         if (res.status === 401 || res.status === 403) {
             localStorage.removeItem('userToken');
+            sessionStorage.setItem('loginHint', 'Сессия истекла, войдите снова');
             window.location.replace('/login');
             return;
         }

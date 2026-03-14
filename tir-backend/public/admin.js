@@ -464,7 +464,7 @@ function renderDayBookings(dateStr) {
 
         const phoneSpan = document.createElement('span');
         phoneSpan.className = 'booking-phone';
-        phoneSpan.textContent = b.phone;
+        phoneSpan.textContent = '+7 ' + formatPhoneDisplay(b.phone);
 
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'booking-delete-btn';
@@ -479,10 +479,15 @@ function renderDayBookings(dateStr) {
 async function deleteBooking(id, row, dateStr) {
     if (!confirm('Удалить эту бронь?')) return;
     try {
-        await fetch(`/api/bookings/${id}`, {
+        // БАГ 2 FIX: проверяем ответ сервера перед изменением UI
+        const res = await fetch(`/api/bookings/${id}`, {
             method: 'DELETE',
             headers: authHeaders()
         });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.message || `Ошибка сервера: ${res.status}`);
+        }
         allBookings = allBookings.filter(b => b.id !== id);
         row.remove();
         renderCalendar();
@@ -570,6 +575,23 @@ function initManualBooking() {
             phoneInput.focus();
             return;
         }
+
+        // БАГ 7 FIX: проверяем ЧС и предупреждаем администратора
+        // (сервер /api/admin/book не блокирует ЧС — это намеренно, но нужно предупреждение)
+        try {
+            const normalized = phoneDigits.startsWith('8') ? '7' + phoneDigits.slice(1) : phoneDigits;
+            const blacklistRes = await fetch('/api/blacklist', { headers: authHeaders() });
+            const blacklist = await blacklistRes.json();
+            const isBlacklisted = blacklist.some(item => item.phone === normalized);
+            if (isBlacklisted) {
+                const proceed = confirm(
+                    `⚠️ Номер ${phone} находится в чёрном списке!\n\n` +
+                    `Ручное бронирование обходит проверку ЧС.\n` +
+                    `Продолжить и создать бронь?`
+                );
+                if (!proceed) return;
+            }
+        } catch { /* при ошибке загрузки ЧС — не блокируем, продолжаем */ }
 
         try {
             const res = await fetch('/api/admin/book', {
@@ -669,6 +691,7 @@ function initForms() {
     document.getElementById('news-form').addEventListener('submit', submitNews);
 
     initManualBooking();
+    initBlacklistForm(); // БАГ 10 FIX: перенесено из отдельного DOMContentLoaded
 }
 
 async function loadBlocked() {
@@ -940,21 +963,22 @@ function showNewsPreview() {
     const modal = document.getElementById('news-preview-modal');
     const previewImg = document.getElementById('preview-img');
 
-    const newFile = document.getElementById('news-image').files[0];
-    const existingItem = document.querySelector('#images-preview .img-preview-item--existing');
+    // БАГ 9 FIX: берём первый элемент в DOM-порядке (после drag-and-drop сортировки),
+    // а не input.files[0] который не учитывает переставленный порядок
+    const firstItem = document.querySelector('#images-preview .img-preview-item');
 
-    if (newFile) {
+    if (!firstItem) {
+        previewImg.style.display = 'none';
+    } else if (firstItem._file) {
         const reader = new FileReader();
         reader.onload = (e) => {
             previewImg.src = e.target.result;
             previewImg.style.display = 'block';
         };
-        reader.readAsDataURL(newFile);
-    } else if (existingItem) {
-        previewImg.src = existingItem.dataset.path;
-        previewImg.style.display = 'block';
+        reader.readAsDataURL(firstItem._file);
     } else {
-        previewImg.style.display = 'none';
+        previewImg.src = firstItem.dataset.path;
+        previewImg.style.display = 'block';
     }
 
     document.getElementById('preview-title').textContent = title;
@@ -1148,7 +1172,15 @@ function renderAdminReviews(containerId, reviews, isApproved) {
                 });
                 await loadAdminReviews();
                 showToast('Отзыв опубликован', 'success');
-                const approvedCard = document.querySelector(`#reviews-approved [data-id="${approvedId}"]`);
+
+                // БАГ 13 FIX: если карточка не найдена — отзыв на другой странице пагинации,
+                // переключаемся на страницу 1 и ищем снова
+                let approvedCard = document.querySelector(`#reviews-approved [data-id="${approvedId}"]`);
+                if (!approvedCard) {
+                    adminReviewsPages['approved'] = 1;
+                    await loadAdminReviews();
+                    approvedCard = document.querySelector(`#reviews-approved [data-id="${approvedId}"]`);
+                }
                 if (approvedCard) {
                     approvedCard.classList.add('admin-review-card--new');
                     setTimeout(() => approvedCard.classList.remove('admin-review-card--new'), 3000);
@@ -1318,8 +1350,8 @@ function escapeHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// Инициализация формы чёрного списка
-document.addEventListener('DOMContentLoaded', () => {
+// БАГ 10 FIX: была отдельным DOMContentLoaded — теперь вызывается из initForms()
+function initBlacklistForm() {
     const form = document.getElementById('blacklist-form');
     const phoneInput = document.getElementById('blacklist-phone');
 
@@ -1355,7 +1387,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-});
+}
 
 // ==================== МОДАЛКА: БРОНИ ПРИ ДОБАВЛЕНИИ В ЧС ====================
 function showBlacklistBookingsModal(bookings) {
@@ -1369,9 +1401,15 @@ function showBlacklistBookingsModal(bookings) {
         const dt = new Date(b.datetime);
         const dateStr = dt.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
         const timeStr = dt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        // Доп FIX: форматируем телефон для отображения (был сырой '79803859597')
+        const phoneFormatted = b.phone ? formatPhoneDisplay(b.phone) : '';
         const li = document.createElement('div');
         li.className = 'blacklist-modal-booking-item';
-        li.innerHTML = `<span class="blacklist-modal-booking-name"></span><span class="blacklist-modal-booking-date">${dateStr} в ${timeStr}</span>`;
+        li.innerHTML = `
+            <span class="blacklist-modal-booking-name"></span>
+            ${phoneFormatted ? `<span class="blacklist-modal-booking-date">+7 ${phoneFormatted}</span>` : ''}
+            <span class="blacklist-modal-booking-date">${dateStr} в ${timeStr}</span>
+        `;
         li.querySelector('.blacklist-modal-booking-name').textContent = b.name;
         list.appendChild(li);
     });
@@ -1383,12 +1421,21 @@ function showBlacklistBookingsModal(bookings) {
     const bookingIds = bookings.map(b => b.id);
 
     confirmBtn.onclick = async () => {
-        await Promise.all(bookingIds.map(id =>
-            fetch(`/api/bookings/${id}`, { method: 'DELETE', headers: authHeaders() })
-        ));
+        // БАГ 3 FIX: Promise.allSettled не падает если один DELETE вернул ошибку
+        const results = await Promise.allSettled(
+            bookingIds.map(id =>
+                fetch(`/api/bookings/${id}`, { method: 'DELETE', headers: authHeaders() })
+            )
+        );
+        const failed = results.filter(r => r.status === 'rejected').length;
+        const deleted = bookings.length - failed;
         closeBlacklistModal();
         loadBookings();
-        showToast(`Номер добавлен в ЧС, ${bookings.length} ${declension(bookings.length, ['бронь', 'брони', 'броней'])} удалено`, 'success');
+        if (failed > 0) {
+            showToast(`Номер в ЧС, удалено ${deleted} из ${bookings.length} броней (${failed} ошибка)`, 'warning');
+        } else {
+            showToast(`Номер добавлен в ЧС, ${bookings.length} ${declension(bookings.length, ['бронь', 'брони', 'броней'])} удалено`, 'success');
+        }
     };
 
     declineBtn.onclick = () => {

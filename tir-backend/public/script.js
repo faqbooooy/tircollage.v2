@@ -12,6 +12,15 @@ const phoneInput = document.getElementById('phone');
 let blockedDates = [];
 let selectedRating = 0;
 
+// БАГ 6 FIX: загружаем заблокированные даты сразу при старте страницы,
+// а не только при смене поля даты (иначе автозаполнение браузера обходит проверку)
+if (document.getElementById('date')) {
+    fetch('/api/blocked-dates')
+        .then(r => r.json())
+        .then(dates => { blockedDates = dates; })
+        .catch(() => {}); // при ошибке используем пустой массив, сервер всё равно проверит
+}
+
 // ====================== ЗАПРЕТ ПРОШЕДШИХ ДАТ (ЛОКАЛЬНО) ======================
 const nowLocal = new Date();
 const today = nowLocal.getFullYear() + '-' + 

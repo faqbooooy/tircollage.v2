@@ -239,20 +239,33 @@ document.getElementById('admin-login-form').addEventListener('submit', async (e)
 });
 
 // ==================== АВТОВХОД ADMIN ПО COOKIE ====================
-// При загрузке страницы всегда пробуем обновить токен по cookie.
-// Если cookie есть и валидна — редиректим в /admin.
-// Если нет — просто показываем форму (без ошибок в консоли).
+// При загрузке страницы пробуем обновить токен по cookie ТОЛЬКО если
+// открыт таб "Персонал" — иначе пользователь идущий в кабинет
+// неожиданно улетает в /admin (БАГ 4 FIX)
 (async () => {
-    // Переключаем на таб "Персонал" если пришли из /admin (после logout)
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('tab') === 'admin') {
+    const isAdminTab = urlParams.get('tab') === 'admin';
+
+    // Переключаем на таб "Персонал" если пришли из /admin (после logout)
+    if (isAdminTab) {
         document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.login-tab-content').forEach(c => c.style.display = 'none');
         document.querySelector('[data-tab="admin"]')?.classList.add('active');
         document.getElementById('tab-admin').style.display = 'block';
     }
 
-    // Пробуем автовход по cookie — всегда, независимо от активного таба
+    // БАГ 11 FIX: показываем подсказку если кабинет выбросил из-за истёкшей сессии
+    const hint = sessionStorage.getItem('loginHint');
+    if (hint) {
+        showError(hint);
+        sessionStorage.removeItem('loginHint');
+    }
+
+    // БАГ 4 FIX: автовход по cookie только если явно открыт таб "Персонал"
+    // Без этого условия сотрудник с активным cookie попадает в /admin
+    // с чужого устройства, где человек хотел зайти в личный кабинет
+    if (!isAdminTab) return;
+
     try {
         const res = await fetch('/api/refresh-token', { method: 'POST' });
         if (res.ok) {
