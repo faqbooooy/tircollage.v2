@@ -87,13 +87,7 @@ db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS reviews (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, rating INTEGER, text TEXT, date TEXT, approved INTEGER DEFAULT 0)`);
     db.run(`CREATE TABLE IF NOT EXISTS news_images (id INTEGER PRIMARY KEY AUTOINCREMENT, news_id INTEGER NOT NULL, image_path TEXT NOT NULL, sort_order INTEGER DEFAULT 0)`);
     db.run(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, phone TEXT UNIQUE NOT NULL, pin_hash TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP)`);
-    // Накопительная статистика — не удаляется при автоочистке броней
-    db.run(`CREATE TABLE IF NOT EXISTS stats_daily (date TEXT PRIMARY KEY, count INTEGER DEFAULT 0)`);
-    db.run(`CREATE TABLE IF NOT EXISTS stats_hourly (hour INTEGER PRIMARY KEY, count INTEGER DEFAULT 0)`);
-    db.run(`CREATE TABLE IF NOT EXISTS stats_weekday (weekday INTEGER PRIMARY KEY, count INTEGER DEFAULT 0)`);
     db.run(`CREATE TABLE IF NOT EXISTS blacklist (id INTEGER PRIMARY KEY AUTOINCREMENT, phone TEXT UNIQUE NOT NULL, reason TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP)`);
-    // Миграция: заполняем статистику из существующих броней если таблицы только что созданы
-    db.run('SELECT 1', () => migrateStatsFromBookings());
 });
 
 // ==================== MULTER (ЗАЩИЩЕННЫЙ) ====================
@@ -345,7 +339,6 @@ app.post('/api/book', bookingLimiter, (req, res) => {
                     }
                     return res.status(500).json({ success: false, message: 'Ошибка базы данных' });
                 }
-                incrementStats(datetime);
                 res.json({ success: true });
             });
         });
@@ -396,7 +389,6 @@ app.post('/api/admin/book', checkToken, (req, res) => {
                         }
                         return res.status(500).json({ success: false, message: 'Ошибка базы данных' });
                     }
-                    incrementStats(datetime);
                     res.json({ success: true });
                 }
             );
@@ -648,33 +640,63 @@ app.put('/api/news/:id', checkToken, (req, res) => {
         ];
         const firstImg = allImages.length > 0 ? allImages[0] : null;
 
-        // Удаляем все старые записи изображений для этой новости
-        db.run('DELETE FROM news_images WHERE news_id = ?', [newsId], (err) => {
+        // Пункт 2 FIX: получаем старые пути ДО удаления из БД,
+        // чтобы удалить с диска те файлы которые больше не нужны
+        db.all('SELECT image_path FROM news_images WHERE news_id = ?', [newsId], (err, oldImgRows) => {
             if (err) return res.status(500).json({ error: err.message });
 
-            // Обновляем саму новость
-            db.run(
-                'UPDATE news SET title=?, content=?, image=? WHERE id=?',
-                [title, content, firstImg, newsId],
-                (err) => {
+            // Также проверяем legacy поле news.image
+            db.get('SELECT image FROM news WHERE id = ?', [newsId], (err, newsRow) => {
+
+                // Собираем все старые пути
+                const oldPaths = (oldImgRows || []).map(r => r.image_path);
+                if (newsRow?.image && !oldPaths.includes(newsRow.image)) {
+                    oldPaths.push(newsRow.image);
+                }
+
+                // Удаляем с диска только те файлы которых нет в новом списке (kept + новые)
+                const pathsToDelete = oldPaths.filter(p => !allImages.includes(p));
+                pathsToDelete.forEach(imgPath => {
+                    if (!imgPath || imgPath.startsWith('http')) return;
+                    const fullPath = path.join(__dirname, 'public', imgPath);
+                    fs.unlink(fullPath, (err) => {
+                        if (err && err.code !== 'ENOENT') {
+                            console.error(`[news edit] Не удалось удалить файл ${fullPath}:`, err.message);
+                        } else if (!err) {
+                            console.log(`[news edit] Удалён старый файл: ${fullPath}`);
+                        }
+                    });
+                });
+
+                // Удаляем все старые записи изображений для этой новости
+                db.run('DELETE FROM news_images WHERE news_id = ?', [newsId], (err) => {
                     if (err) return res.status(500).json({ error: err.message });
 
-                    if (allImages.length === 0) return res.json({ success: true });
+                    // Обновляем саму новость
+                    db.run(
+                        'UPDATE news SET title=?, content=?, image=? WHERE id=?',
+                        [title, content, firstImg, newsId],
+                        (err) => {
+                            if (err) return res.status(500).json({ error: err.message });
 
-                    // Вставляем все изображения заново
-                    let completed = 0;
-                    allImages.forEach((imgPath, i) => {
-                        db.run(
-                            'INSERT INTO news_images (news_id, image_path, sort_order) VALUES (?, ?, ?)',
-                            [newsId, imgPath, i],
-                            (err) => {
-                                if (err) console.error('Ошибка вставки изображения:', err);
-                                if (++completed === allImages.length) res.json({ success: true });
-                            }
-                        );
-                    });
-                }
-            );
+                            if (allImages.length === 0) return res.json({ success: true });
+
+                            // Вставляем все изображения заново
+                            let completed = 0;
+                            allImages.forEach((imgPath, i) => {
+                                db.run(
+                                    'INSERT INTO news_images (news_id, image_path, sort_order) VALUES (?, ?, ?)',
+                                    [newsId, imgPath, i],
+                                    (err) => {
+                                        if (err) console.error('Ошибка вставки изображения:', err);
+                                        if (++completed === allImages.length) res.json({ success: true });
+                                    }
+                                );
+                            });
+                        }
+                    );
+                });
+            });
         });
     });
 });
@@ -833,25 +855,33 @@ app.get('/api/cabinet/reviews', checkUserToken, (req, res) => {
 });
 
 // ==================== СТАТИСТИКА ====================
+// Вариант Б: считаем реальные брони из таблицы bookings.
+// Удалённые брони не учитываются — статистика всегда актуальна.
 app.get('/api/stats', checkToken, (req, res) => {
     const now = new Date();
+
+    // Начало текущей недели (понедельник)
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-    const weekStr = weekStart.toISOString().slice(0, 10);
-    const monthStr = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekStr = weekStart.toISOString().slice(0, 16);
+
+    // Начало текущего месяца
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthStr = monthStart.toISOString().slice(0, 16);
 
     const stats = {};
 
-    // Всего броней из накопительной статистики
-    db.get('SELECT SUM(count) as cnt FROM stats_daily', (err, row) => {
+    // Всего броней в базе
+    db.get('SELECT COUNT(*) as cnt FROM bookings', (err, row) => {
         stats.total = row?.cnt || 0;
 
         // За эту неделю
-        db.get('SELECT SUM(count) as cnt FROM stats_daily WHERE date >= ?', [weekStr], (err, row) => {
+        db.get('SELECT COUNT(*) as cnt FROM bookings WHERE datetime >= ?', [weekStr], (err, row) => {
             stats.week = row?.cnt || 0;
 
             // За этот месяц
-            db.get('SELECT SUM(count) as cnt FROM stats_daily WHERE date >= ?', [monthStr], (err, row) => {
+            db.get('SELECT COUNT(*) as cnt FROM bookings WHERE datetime >= ?', [monthStr], (err, row) => {
                 stats.month = row?.cnt || 0;
 
                 // Отзывы
@@ -862,22 +892,41 @@ app.get('/api/stats', checkToken, (req, res) => {
                     db.get('SELECT COUNT(*) as cnt FROM reviews WHERE approved = 0', (err, row) => {
                         stats.pending = row?.cnt || 0;
 
-                        // Популярные часы из накопительной таблицы
-                        db.all('SELECT hour, count as cnt FROM stats_hourly ORDER BY cnt DESC LIMIT 5', (err, rows) => {
-                            stats.popularHours = (rows || []).map(r => ({
-                                hour: String(r.hour).padStart(2, '0'),
-                                cnt: r.cnt
-                            }));
+                        // Популярные часы — из реальных броней
+                        // strftime('%H') возвращает час как строку '10', '11'...
+                        db.all(
+                            `SELECT CAST(strftime('%H', datetime) AS INTEGER) as hour,
+                                    COUNT(*) as cnt
+                             FROM bookings
+                             GROUP BY hour
+                             ORDER BY cnt DESC
+                             LIMIT 5`,
+                            (err, rows) => {
+                                stats.popularHours = (rows || []).map(r => ({
+                                    hour: String(r.hour).padStart(2, '0'),
+                                    cnt: r.cnt
+                                }));
 
-                            // Дни недели из накопительной таблицы
-                            const dayNames = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
-                            db.all('SELECT weekday, count as cnt FROM stats_weekday ORDER BY weekday', (err, rows) => {
-                                const map = {};
-                                (rows || []).forEach(r => map[r.weekday] = r.cnt);
-                                stats.weekdays = dayNames.map((name, i) => ({ name, cnt: map[i] || 0 }));
-                                res.json(stats);
-                            });
-                        });
+                                // Дни недели из реальных броней
+                                // strftime('%w') = 0 (вс) .. 6 (сб)
+                                const dayNames = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+                                db.all(
+                                    `SELECT CAST(strftime('%w', datetime) AS INTEGER) as weekday,
+                                            COUNT(*) as cnt
+                                     FROM bookings
+                                     GROUP BY weekday`,
+                                    (err, rows) => {
+                                        const map = {};
+                                        (rows || []).forEach(r => map[r.weekday] = r.cnt);
+                                        stats.weekdays = dayNames.map((name, i) => ({
+                                            name,
+                                            cnt: map[i] || 0
+                                        }));
+                                        res.json(stats);
+                                    }
+                                );
+                            }
+                        );
                     });
                 });
             });
@@ -908,36 +957,6 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Сервер запущен: http://localhost:${PORT}`));
-
-// ==================== НАКОПИТЕЛЬНАЯ СТАТИСТИКА ====================
-
-// Инкремент при новой брони
-function incrementStats(datetimeStr) {
-    const d = new Date(datetimeStr);
-    const date = datetimeStr.slice(0, 10);           // YYYY-MM-DD
-    const hour = d.getHours();                        // 0-23
-    const weekday = d.getDay();                       // 0=вс, 1=пн...
-
-    db.run(`INSERT INTO stats_daily (date, count) VALUES (?, 1)
-            ON CONFLICT(date) DO UPDATE SET count = count + 1`, [date]);
-    db.run(`INSERT INTO stats_hourly (hour, count) VALUES (?, 1)
-            ON CONFLICT(hour) DO UPDATE SET count = count + 1`, [hour]);
-    db.run(`INSERT INTO stats_weekday (weekday, count) VALUES (?, 1)
-            ON CONFLICT(weekday) DO UPDATE SET count = count + 1`, [weekday]);
-}
-
-// Миграция: заполняем статистику из существующих броней (запускается один раз при старте)
-function migrateStatsFromBookings() {
-    db.get('SELECT COUNT(*) as cnt FROM stats_daily', (err, row) => {
-        if (err || (row && row.cnt > 0)) return; // уже есть данные — пропускаем
-        db.all('SELECT datetime FROM bookings', (err, rows) => {
-            if (err || !rows.length) return;
-            console.log(`[stats] Миграция: обрабатываем ${rows.length} броней...`);
-            rows.forEach(r => incrementStats(r.datetime));
-            console.log('[stats] Миграция завершена');
-        });
-    });
-}
 
 // ==================== АВТОУДАЛЕНИЕ СТАРЫХ БРОНЕЙ ====================
 function cleanupOldBookings() {
